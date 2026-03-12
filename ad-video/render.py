@@ -1,30 +1,79 @@
 """
-Handwerk Ad Video Renderer — Python/PIL/NumPy + imageio-ffmpeg
-30 seconds @ 30fps = 900 frames @ 1280x720
+Handwerk Ad Video Renderer v2 — Creative Director Cut
+~56 seconds @ 30fps = 1680 frames @ 1280x720
+
+Narrative arc:
+  ACT 1 — Problem       (S0–S2):  Fragmentierte Tools, Chaos, Überwältigung
+  ACT 2 — Shift         (S3–S4):  Neue Plattform entsteht, Tools lösen sich auf
+  ACT 3 — Platform Live (S5–S8):  Dashboard UI, Kanban, Zeiterfassung, Ticketsystem
+  ACT 4 — Social Proof  (S9–S11): Module deep-dives, ISOTEC/VITERMA split
+  ACT 5 — Vision        (S12–S13): Full picture, Finale tagline
 """
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import imageio
 import math
-import sys
 import os
 
-# ─── Config ──────────────────────────────────────────────────────────────────
+# ─── Config ───────────────────────────────────────────────────────────────────
 W, H = 1280, 720
-FPS = 30
-TOTAL_FRAMES = 900  # 30s
+FPS  = 30
 OUT_PATH = os.path.join(os.path.dirname(__file__), "out", "ad-video.mp4")
 os.makedirs(os.path.join(os.path.dirname(__file__), "out"), exist_ok=True)
 
+# Scene lengths in frames
+SCENE_LENGTHS = [
+    100,  # S0  — Icons isolated
+    100,  # S1  — Chaos lines
+    100,  # S2  — Freeze / overwhelm
+    110,  # S3  — Node emerges
+    100,  # S4  — Integration dissolve
+    140,  # S5  — Dashboard UI  (NEW)
+    150,  # S6  — Kanban Pipeline  (NEW)
+    130,  # S7  — Zeiterfassung Live  (NEW)
+    120,  # S8  — Ticketsystem / E-Mail  (NEW)
+    100,  # S9  — Warenwirtschaft deep-dive
+    100,  # S10 — Projektverwaltung deep-dive
+    130,  # S11 — Social Proof ISOTEC/VITERMA  (NEW)
+    110,  # S12 — Full abstract overview
+    160,  # S13 — Finale tagline
+]
+TOTAL_FRAMES = sum(SCENE_LENGTHS)   # 1680
+
+# Precompute scene start offsets
+SCENE_STARTS = []
+_s = 0
+for sl in SCENE_LENGTHS:
+    SCENE_STARTS.append(_s)
+    _s += sl
+
 # ─── Colors ───────────────────────────────────────────────────────────────────
-BLACK       = (0, 0, 0)
-WHITE       = (255, 255, 255)
-CYAN        = (0, 200, 255)
-BLUE        = (0, 120, 255)
-PURPLE      = (123, 79, 255)
-GRAY        = (140, 150, 180)
-DARK_BLUE   = (5, 5, 20)
+WHITE   = (255, 255, 255)
+BLACK   = (0, 0, 0)
+CYAN    = (0, 200, 255)
+BLUE    = (0, 120, 255)
+PURPLE  = (123, 79, 255)
+GRAY    = (140, 150, 180)
+LGRAY   = (200, 205, 215)
+RED     = (204, 30, 30)     # ISOTEC red
+TEAL    = (0, 185, 175)     # VITERMA teal
+ORANGE  = (255, 107, 53)
+AMBER   = (255, 152, 0)
+GREEN   = (33, 150, 80)
+
+# ─── Fonts ────────────────────────────────────────────────────────────────────
+_FONT_CACHE = {}
+def font(size, bold=False):
+    key = (size, bold)
+    if key not in _FONT_CACHE:
+        fname = ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold
+                 else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+        try:
+            _FONT_CACHE[key] = ImageFont.truetype(fname, size)
+        except:
+            _FONT_CACHE[key] = ImageFont.load_default()
+    return _FONT_CACHE[key]
 
 # ─── Animation helpers ────────────────────────────────────────────────────────
 def clamp(v, lo=0.0, hi=1.0):
@@ -32,36 +81,36 @@ def clamp(v, lo=0.0, hi=1.0):
 
 def lerp(frame, f0, f1, v0=0.0, v1=1.0):
     if f1 == f0: return v1 if frame >= f1 else v0
-    t = clamp((frame - f0) / (f1 - f0))
-    return v0 + (v1 - v0) * t
+    return v0 + (v1 - v0) * clamp((frame - f0) / (f1 - f0))
+
+def ease_out(t):
+    return 1 - (1-t)**3
 
 def ease_in_out(t):
     return t * t * (3 - 2 * t)
 
-def lerp_ease(frame, f0, f1, v0=0.0, v1=1.0):
+def lerp_e(frame, f0, f1, v0=0.0, v1=1.0):
     t = clamp((frame - f0) / max(f1 - f0, 1))
     return v0 + (v1 - v0) * ease_in_out(t)
 
+def lerp_eo(frame, f0, f1, v0=0.0, v1=1.0):
+    t = clamp((frame - f0) / max(f1 - f0, 1))
+    return v0 + (v1 - v0) * ease_out(t)
+
 def spring(frame, start, stiffness=0.3, damping=0.7):
-    """Simplified spring: returns 0→1 value"""
     t = max(0, frame - start) / FPS
     if t <= 0: return 0.0
     omega = math.sqrt(stiffness) * 15
-    zeta = damping
+    zeta  = damping
     if zeta < 1:
-        wd = omega * math.sqrt(1 - zeta ** 2)
-        val = 1 - math.exp(-zeta * omega * t) * (
-            math.cos(wd * t) + (zeta * omega / wd) * math.sin(wd * t)
-        )
+        wd  = omega * math.sqrt(1 - zeta**2)
+        val = 1 - math.exp(-zeta*omega*t) * (
+            math.cos(wd*t) + (zeta*omega/wd)*math.sin(wd*t))
     else:
-        val = 1 - math.exp(-omega * t) * (1 + omega * t)
+        val = 1 - math.exp(-omega*t) * (1 + omega*t)
     return clamp(val)
 
-# ─── Icon layout (normalized → pixel) ────────────────────────────────────────
-def px(nx, ny=None):
-    if ny is None: return int(nx * W)
-    return int(nx * W), int(ny * H)
-
+# ─── Icon layout ──────────────────────────────────────────────────────────────
 ICON_NORM = {
     "BLS":       (0.15, 0.22),
     "BMD":       (0.80, 0.20),
@@ -72,276 +121,20 @@ ICON_NORM = {
     "Email":     (0.44, 0.14),
     "Craftnote": (0.56, 0.85),
 }
-CENTER_N = (0.50, 0.50)
-
-def icon_px(name):
-    nx, ny = ICON_NORM[name]
-    return (int(nx * W), int(ny * H))
-
-CENTER_PX = (W // 2, H // 2)
+CENTER_PX = (W//2, H//2)
 
 ICON_META = {
-    "BLS":       {"color": (255, 107,  53), "emoji": "📊", "label": "BLS"},
-    "BMD":       {"color": (229,  57,  53), "emoji": "📋", "label": "BMD"},
-    "Sevdesk":   {"color": (  0, 188, 212), "emoji": "🧾", "label": "Sevdesk"},
-    "Excel":     {"color": ( 33, 115,  70), "emoji": "📈", "label": "Excel"},
-    "OneDrive":  {"color": (  0, 120, 212), "emoji": "☁",  "label": "OneDrive"},
-    "Dropbox":   {"color": (  0,  97, 255), "emoji": "📦", "label": "Dropbox"},
-    "Email":     {"color": (156,  39, 176), "emoji": "✉",  "label": "E-Mail"},
-    "Craftnote": {"color": (255, 152,   0), "emoji": "🔨", "label": "Craftnote"},
+    "BLS":       {"color": ORANGE,         "label": "BLS"},
+    "BMD":       {"color": (229, 57, 53),  "label": "BMD"},
+    "Sevdesk":   {"color": (0, 188, 212),  "label": "Sevdesk"},
+    "Excel":     {"color": GREEN,          "label": "Excel"},
+    "OneDrive":  {"color": (0, 120, 212),  "label": "OneDrive"},
+    "Dropbox":   {"color": (0, 97, 255),   "label": "Dropbox"},
+    "Email":     {"color": (156, 39, 176), "label": "E-Mail"},
+    "Craftnote": {"color": AMBER,          "label": "Craftnote"},
 }
-
-# ─── Drawing helpers ───────────────────────────────────────────────────────────
-def alpha_blend(base: np.ndarray, overlay: np.ndarray, alpha: float) -> np.ndarray:
-    a = clamp(alpha)
-    return (base * (1 - a) + overlay * a).astype(np.uint8)
-
-def radial_gradient(w, h, cx, cy, r, inner_col, outer_col=(0,0,0)):
-    """Returns RGBA numpy array with radial gradient"""
-    x = np.arange(w)
-    y = np.arange(h)
-    xx, yy = np.meshgrid(x, y)
-    dist = np.sqrt((xx - cx)**2 + (yy - cy)**2)
-    t = np.clip(dist / r, 0, 1)
-    img = np.zeros((h, w, 4), dtype=np.float32)
-    for c in range(3):
-        img[:,:,c] = inner_col[c] * (1 - t) + outer_col[c] * t
-    img[:,:,3] = (1 - t) * 255
-    return img.astype(np.uint8)
-
-def make_background(frame=0):
-    """Dark background with subtle blue-ish center glow"""
-    img = np.zeros((H, W, 3), dtype=np.uint8)
-    img[:] = (3, 3, 15)  # very dark blue
-    # radial vignette center lighter
-    cx, cy = W//2, H//2
-    x = np.arange(W)
-    y = np.arange(H)
-    xx, yy = np.meshgrid(x, y)
-    dist = np.sqrt((xx - cx)**2 + (yy - cy)**2)
-    glow = np.clip(1.0 - dist / (max(W,H) * 0.6), 0, 1) * 12
-    img[:,:,0] = np.clip(img[:,:,0] + glow * 0.5, 0, 255).astype(np.uint8)
-    img[:,:,1] = np.clip(img[:,:,1] + glow * 0.3, 0, 255).astype(np.uint8)
-    img[:,:,2] = np.clip(img[:,:,2] + glow * 1.5, 0, 255).astype(np.uint8)
-    return img
-
-def draw_glow_circle(draw, cx, cy, r, color, layers=4):
-    """Draw a glowing circle using multiple alpha layers"""
-    for i in range(layers, 0, -1):
-        factor = i / layers
-        ar = r + (layers - i) * r * 0.5
-        alpha_val = int(40 * factor)
-        c = tuple(list(color) + [alpha_val])
-        draw.ellipse([cx-ar, cy-ar, cx+ar, cy+ar],
-                     fill=c, outline=None)
-
-def draw_icon(img_pil: Image.Image, name: str, cx: int, cy: int,
-              opacity: float = 1.0, scale: float = 1.0, glowing: bool = False):
-    """Draw a software icon box at (cx,cy) with given opacity/scale"""
-    if opacity <= 0.01: return
-    size = int(70 * scale)
-    half = size // 2
-    meta = ICON_META[name]
-    color = meta["color"]
-    label = meta["label"]
-
-    # Create icon on transparent layer
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-
-    # Glow behind icon
-    if glowing or opacity > 0.5:
-        glow_r = half + 20
-        for gi in range(4, 0, -1):
-            ga = int(25 * gi / 4 * opacity)
-            gr = glow_r + (4 - gi) * 10
-            d.ellipse([cx-gr, cy-gr, cx+gr, cy+gr],
-                      fill=(*color, ga))
-
-    # Box background
-    x0, y0 = cx - half, cy - half
-    x1, y1 = cx + half, cy + half
-    d.rounded_rectangle([x0, y0, x1, y1], radius=int(14*scale),
-                        fill=(*color, int(30*opacity)),
-                        outline=(*color, int(120*opacity)),
-                        width=2)
-
-    # Accent dot
-    dot_r = int(5 * scale)
-    d.ellipse([x1-dot_r*2-2, y1-dot_r*2-2, x1-2, y1-2],
-              fill=(*color, int(200*opacity)))
-
-    # Label text
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                                  int(10 * scale))
-    except:
-        font = ImageFont.load_default()
-
-    # Icon letter(s) in center
-    try:
-        big_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                                       int(20 * scale))
-    except:
-        big_font = ImageFont.load_default()
-
-    d.text((cx, cy - int(4*scale)), label[:2],
-           font=big_font, anchor="mm",
-           fill=(*WHITE, int(220*opacity)))
-
-    # Label below
-    d.text((cx, cy + half + int(10*scale)), label,
-           font=font, anchor="mm",
-           fill=(*GRAY, int(180*opacity)))
-
-    # Composite
-    img_alpha = img_pil.convert("RGBA")
-    img_alpha = Image.alpha_composite(img_alpha, layer)
-    img_pil.paste(img_alpha.convert("RGB"))
-
-def draw_line(img_pil: Image.Image, x1, y1, x2, y2,
-              progress=1.0, color=CYAN, width=2, opacity=1.0, curved=True):
-    """Draw animated line from (x1,y1) toward (x2,y2) with progress 0-1"""
-    if progress <= 0 or opacity <= 0.01: return
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-
-    # Endpoint based on progress
-    ex = int(x1 + (x2 - x1) * progress)
-    ey = int(y1 + (y2 - y1) * progress)
-
-    c = (*color, int(255 * opacity))
-    cg = (*color, int(60 * opacity))  # glow
-
-    # Glow (thicker, transparent)
-    if opacity > 0.3:
-        d.line([(x1, y1), (ex, ey)], fill=cg, width=width * 4)
-    # Main line
-    d.line([(x1, y1), (ex, ey)], fill=c, width=width)
-
-    img_alpha = img_pil.convert("RGBA")
-    img_alpha = Image.alpha_composite(img_alpha, layer)
-    img_pil.paste(img_alpha.convert("RGB"))
-
-def draw_text_center(draw: ImageDraw.ImageDraw, text: str, y: int,
-                     opacity: float = 1.0, size: int = 16,
-                     color=GRAY, bold=False):
-    if opacity <= 0.01: return
-    fname = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else \
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    try:
-        font = ImageFont.truetype(fname, size)
-    except:
-        font = ImageFont.load_default()
-    c = (*color, int(255 * opacity))
-    draw.text((W//2, y), text, font=font, anchor="mm", fill=c)
-
-def draw_module_card(img_pil: Image.Image, cx: int, cy: int,
-                     title: str, items: list, opacity: float = 1.0,
-                     color=CYAN, w=200, h=None):
-    if opacity <= 0.01: return
-    if h is None:
-        h = 50 + len(items) * 22
-    x0, y0 = cx - w//2, cy - h//2
-    x1, y1 = cx + w//2, cy + h//2
-
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-
-    # Card background
-    d.rounded_rectangle([x0, y0, x1, y1], radius=10,
-                        fill=(10, 12, 30, int(210 * opacity)),
-                        outline=(*color, int(100 * opacity)),
-                        width=1)
-
-    # Header bar
-    d.rounded_rectangle([x0, y0, x1, y0+28], radius=10,
-                        fill=(*color, int(40 * opacity)))
-    d.rounded_rectangle([x0, y0+18, x1, y0+28], radius=0,
-                        fill=(*color, int(40 * opacity)))
-
-    # Accent dot
-    d.ellipse([x0+8, y0+10, x0+18, y0+20],
-              fill=(*color, int(220 * opacity)))
-
-    try:
-        font_title = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 11)
-        font_item = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-    except:
-        font_title = font_item = ImageFont.load_default()
-
-    d.text((x0 + 24, y0 + 14), title, font=font_title, anchor="lm",
-           fill=(*WHITE, int(230 * opacity)))
-
-    for i, item in enumerate(items):
-        iy = y0 + 38 + i * 20
-        d.ellipse([x0+10, iy-3, x0+16, iy+3],
-                  fill=(*color, int(150 * opacity)))
-        d.text((x0+24, iy), item, font=font_item, anchor="lm",
-               fill=(*GRAY, int(190 * opacity)))
-
-    img_alpha = img_pil.convert("RGBA")
-    img_alpha = Image.alpha_composite(img_alpha, layer)
-    img_pil.paste(img_alpha.convert("RGB"))
-
-def draw_glow_node(img_pil: Image.Image, cx: int, cy: int,
-                   scale: float = 1.0, opacity: float = 1.0, pulse=0.0):
-    if opacity <= 0.01 or scale <= 0.01: return
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-
-    # Outer glow rings
-    for ri, (r, a) in enumerate([(90, 20), (60, 35), (36, 55), (20, 80)]):
-        r2 = int(r * scale)
-        d.ellipse([cx-r2, cy-r2, cx+r2, cy+r2],
-                  fill=(*BLUE, int(a * opacity)))
-
-    # Pulse ring
-    if pulse > 0:
-        pr = int((24 + (90 - 24) * pulse) * scale)
-        pa = int((1 - pulse) * 200 * opacity)
-        d.ellipse([cx-pr, cy-pr, cx+pr, cy+pr],
-                  fill=None, outline=(*CYAN, pa), width=2)
-
-    # Core
-    cr = int(20 * scale)
-    d.ellipse([cx-cr, cy-cr, cx+cr, cy+cr],
-              fill=(*WHITE, int(240 * opacity)))
-    # Inner dot
-    dr = int(6 * scale)
-    d.ellipse([cx-dr, cy-dr, cx+dr, cy+dr],
-              fill=(*BLUE, int(200 * opacity)))
-
-    img_alpha = img_pil.convert("RGBA")
-    img_alpha = Image.alpha_composite(img_alpha, layer)
-    img_pil.paste(img_alpha.convert("RGB"))
-
-def draw_particles(img_pil: Image.Image, cx: int, cy: int, progress: float,
-                   count=28, seed=42, color=(255,152,0)):
-    if progress <= 0: return
-    rng = np.random.default_rng(seed)
-    angles = rng.uniform(0, 2*math.pi, count)
-    speeds = rng.uniform(60, 180, count)
-    sizes  = rng.uniform(2, 6, count)
-
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    for i in range(count):
-        dist = speeds[i] * progress
-        x = cx + int(math.cos(angles[i]) * dist)
-        y = cy + int(math.sin(angles[i]) * dist)
-        alpha = max(0, 1 - progress * 1.3)
-        r = max(1, int(sizes[i] * (1 - progress * 0.6)))
-        d.ellipse([x-r, y-r, x+r, y+r],
-                  fill=(*color, int(alpha * 220)))
-
-    img_alpha = img_pil.convert("RGBA")
-    img_alpha = Image.alpha_composite(img_alpha, layer)
-    img_pil.paste(img_alpha.convert("RGB"))
-
 ALL_ICONS = list(ICON_META.keys())
+
 CONNECTIONS = [
     ("Excel", "BMD"), ("Email", "Craftnote"),
     ("Dropbox", "BLS"), ("OneDrive", "Sevdesk"),
@@ -350,376 +143,1042 @@ CONNECTIONS = [
     ("Dropbox", "Email"), ("Excel", "Craftnote"),
     ("BLS", "Sevdesk"), ("Dropbox", "BMD"),
 ]
-LINE_COLORS = [CYAN, BLUE, PURPLE, (255,107,53), (255,152,0),
+LINE_COLORS = [CYAN, BLUE, PURPLE, ORANGE, AMBER,
                CYAN, BLUE, PURPLE, (0,188,212), CYAN, BLUE, PURPLE]
 
-# ─── Scene renderers ──────────────────────────────────────────────────────────
+def icon_px(name):
+    nx, ny = ICON_NORM[name]
+    return (int(nx * W), int(ny * H))
 
+# ─── Base drawing primitives ──────────────────────────────────────────────────
+def make_background():
+    img = np.zeros((H, W, 3), dtype=np.uint8)
+    img[:] = (3, 3, 15)
+    cx, cy = W//2, H//2
+    x = np.arange(W); y = np.arange(H)
+    xx, yy = np.meshgrid(x, y)
+    dist = np.sqrt((xx-cx)**2 + (yy-cy)**2)
+    glow = np.clip(1.0 - dist / (max(W,H)*0.6), 0, 1) * 14
+    img[:,:,2] = np.clip(img[:,:,2] + glow*1.8, 0, 255).astype(np.uint8)
+    img[:,:,0] = np.clip(img[:,:,0] + glow*0.4, 0, 255).astype(np.uint8)
+    return img
+
+def composite(img_pil: Image.Image, layer: Image.Image):
+    img_a = img_pil.convert("RGBA")
+    img_pil.paste(Image.alpha_composite(img_a, layer).convert("RGB"))
+
+def new_layer():
+    return Image.new("RGBA", (W, H), (0,0,0,0))
+
+def draw_icon(img_pil, name, cx, cy, opacity=1.0, scale=1.0, glowing=False):
+    if opacity <= 0.01 or scale <= 0.01: return
+    size = int(70 * scale)
+    half = size // 2
+    meta = ICON_META[name]
+    color = meta["color"]
+    label = meta["label"]
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    if glowing or opacity > 0.5:
+        for gi in range(4, 0, -1):
+            ga = int(25 * gi/4 * opacity)
+            gr = half + 20 + (4-gi)*10
+            d.ellipse([cx-gr, cy-gr, cx+gr, cy+gr], fill=(*color, ga))
+    x0,y0 = cx-half, cy-half
+    x1,y1 = cx+half, cy+half
+    d.rounded_rectangle([x0,y0,x1,y1], radius=int(14*scale),
+                        fill=(*color, int(28*opacity)),
+                        outline=(*color, int(110*opacity)), width=2)
+    dot_r = int(5*scale)
+    d.ellipse([x1-dot_r*2-2, y1-dot_r*2-2, x1-2, y1-2],
+              fill=(*color, int(190*opacity)))
+    d.text((cx, cy-int(4*scale)), label[:2], font=font(int(20*scale), bold=True),
+           anchor="mm", fill=(*WHITE, int(215*opacity)))
+    d.text((cx, cy+half+int(10*scale)), label, font=font(int(10*scale)),
+           anchor="mm", fill=(*GRAY, int(170*opacity)))
+    composite(img_pil, layer)
+
+def draw_line(img_pil, x1,y1,x2,y2, progress=1.0, color=CYAN,
+              width=2, opacity=1.0):
+    if progress<=0 or opacity<=0.01: return
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    ex = int(x1 + (x2-x1)*progress)
+    ey = int(y1 + (y2-y1)*progress)
+    if opacity > 0.25:
+        d.line([(x1,y1),(ex,ey)], fill=(*color, int(55*opacity)), width=width*4)
+    d.line([(x1,y1),(ex,ey)], fill=(*color, int(245*opacity)), width=width)
+    composite(img_pil, layer)
+
+def draw_glow_node(img_pil, cx, cy, scale=1.0, opacity=1.0, pulse=0.0):
+    if opacity<=0.01 or scale<=0.01: return
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    for r,a in [(90,20),(60,36),(36,56),(20,82)]:
+        r2 = int(r*scale)
+        d.ellipse([cx-r2,cy-r2,cx+r2,cy+r2], fill=(*BLUE, int(a*opacity)))
+    if pulse > 0:
+        pr = int((24+(90-24)*pulse)*scale)
+        pa = int((1-pulse)*210*opacity)
+        d.ellipse([cx-pr,cy-pr,cx+pr,cy+pr],
+                  fill=None, outline=(*CYAN, pa), width=2)
+    cr = int(20*scale)
+    d.ellipse([cx-cr,cy-cr,cx+cr,cy+cr], fill=(*WHITE, int(235*opacity)))
+    dr = int(6*scale)
+    d.ellipse([cx-dr,cy-dr,cx+dr,cy+dr], fill=(*BLUE, int(195*opacity)))
+    composite(img_pil, layer)
+
+def draw_particles(img_pil, cx, cy, progress, count=28, seed=42, color=AMBER):
+    if progress<=0: return
+    rng = np.random.default_rng(seed)
+    angles = rng.uniform(0, 2*math.pi, count)
+    speeds = rng.uniform(60, 180, count)
+    sizes  = rng.uniform(2, 6, count)
+    layer  = new_layer()
+    d      = ImageDraw.Draw(layer)
+    for i in range(count):
+        dist = speeds[i]*progress
+        x = cx + int(math.cos(angles[i])*dist)
+        y = cy + int(math.sin(angles[i])*dist)
+        alpha = max(0, 1-progress*1.3)
+        r = max(1, int(sizes[i]*(1-progress*0.5)))
+        d.ellipse([x-r,y-r,x+r,y+r], fill=(*color, int(alpha*215)))
+    composite(img_pil, layer)
+
+def text_c(draw, text, y, opacity=1.0, size=14, color=GRAY, bold=False):
+    if opacity<=0.01: return
+    draw.text((W//2, y), text, font=font(size, bold=bold),
+              anchor="mm", fill=(*color, int(255*opacity)))
+
+def draw_module_card(img_pil, cx, cy, title, items, opacity=1.0,
+                     color=CYAN, w=200):
+    if opacity<=0.01: return
+    h_card = 48 + len(items)*22
+    x0,y0 = cx-w//2, cy-h_card//2
+    x1,y1 = cx+w//2, cy+h_card//2
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    d.rounded_rectangle([x0,y0,x1,y1], radius=10,
+                        fill=(10,12,30, int(210*opacity)),
+                        outline=(*color, int(95*opacity)), width=1)
+    d.rounded_rectangle([x0,y0,x1,y0+28], radius=10,
+                        fill=(*color, int(38*opacity)))
+    d.rounded_rectangle([x0,y0+18,x1,y0+28], radius=0,
+                        fill=(*color, int(38*opacity)))
+    d.ellipse([x0+8,y0+10,x0+18,y0+20], fill=(*color, int(220*opacity)))
+    d.text((x0+26,y0+14), title, font=font(11,bold=True), anchor="lm",
+           fill=(*WHITE, int(225*opacity)))
+    for i,item in enumerate(items):
+        iy = y0+38+i*20
+        d.ellipse([x0+10,iy-3,x0+16,iy+3], fill=(*color, int(145*opacity)))
+        d.text((x0+24,iy), item, font=font(10), anchor="lm",
+               fill=(*GRAY, int(185*opacity)))
+    composite(img_pil, layer)
+
+# ─── UI Scene helpers (light/dark card UI) ────────────────────────────────────
+def draw_ui_panel(img_pil, x0, y0, w, h, title,
+                  opacity=1.0, accent=CYAN, dark=True):
+    """Renders a realistic platform UI panel."""
+    if opacity<=0.01: return
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    bg   = (12,14,32,int(230*opacity))  if dark else (240,242,248,int(235*opacity))
+    bord = (*accent, int(80*opacity))
+    d.rounded_rectangle([x0,y0,x0+w,y0+h], radius=8, fill=bg, outline=bord, width=1)
+    # Title bar
+    bar_col = (*accent, int(35*opacity))
+    d.rounded_rectangle([x0,y0,x0+w,y0+30], radius=8, fill=bar_col)
+    d.rounded_rectangle([x0,y0+20,x0+w,y0+30], radius=0, fill=bar_col)
+    tc = (*WHITE,int(220*opacity)) if dark else (30,30,50,int(220*opacity))
+    d.text((x0+12, y0+15), title, font=font(11,bold=True), anchor="lm", fill=tc)
+    composite(img_pil, layer)
+
+def draw_ui_stat(img_pil, cx, cy, value, label,
+                 opacity=1.0, color=WHITE, vsize=28):
+    """Big stat number + small label."""
+    if opacity<=0.01: return
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    d.text((cx,cy),   value, font=font(vsize,bold=True),
+           anchor="mm", fill=(*color, int(245*opacity)))
+    d.text((cx,cy+20), label, font=font(9),
+           anchor="mm", fill=(*GRAY, int(185*opacity)))
+    composite(img_pil, layer)
+
+def draw_status_badge(img_pil, x, y, text, color, opacity=1.0):
+    if opacity<=0.01: return
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    tw = font(9).getlength(text) + 10
+    d.rounded_rectangle([x, y-8, x+tw, y+8], radius=4,
+                        fill=(*color, int(60*opacity)),
+                        outline=(*color, int(130*opacity)), width=1)
+    d.text((x+tw//2, y), text, font=font(9), anchor="mm",
+           fill=(*color, int(220*opacity)))
+    composite(img_pil, layer)
+
+def draw_row(img_pil, x, y, w, text_left, text_right="", opacity=1.0,
+             color=LGRAY, accent=None, h=18):
+    if opacity<=0.01: return
+    layer = new_layer()
+    d = ImageDraw.Draw(layer)
+    d.rounded_rectangle([x,y-h//2,x+w,y+h//2], radius=3,
+                        fill=(255,255,255,int(8*opacity)))
+    tc = (*color, int(200*opacity))
+    d.text((x+8,y), text_left, font=font(9), anchor="lm", fill=tc)
+    if text_right:
+        ac = accent if accent else color
+        d.text((x+w-8,y), text_right, font=font(9,bold=True),
+               anchor="rm", fill=(*ac, int(220*opacity)))
+    composite(img_pil, layer)
+
+# ─── Scene 0: Icons isolated ──────────────────────────────────────────────────
+def scene00(f, img):
+    for i, name in enumerate(ALL_ICONS):
+        op = lerp_e(f, i*5, i*5+18)
+        cx,cy = icon_px(name)
+        float_y = int(math.sin(f*0.06 + i*0.9)*6)
+        draw_icon(img, name, cx, cy+float_y, opacity=op)
+    d = ImageDraw.Draw(img)
+    text_c(d, "Viele Betriebe. Viele Tools. Kein Überblick.",
+           H-55, opacity=lerp_e(f,18,38), size=14)
+
+# ─── Scene 1: Chaos ───────────────────────────────────────────────────────────
 def scene01(f, img):
-    """Fragmentierte Softwarewelt: icons floating isolated"""
-    d = ImageDraw.Draw(img.convert("RGBA"))
-    draw = ImageDraw.Draw(img)
-    for i, name in enumerate(ALL_ICONS):
-        op = lerp_ease(f, i*5, i*5+15)
-        cx, cy = icon_px(name)
-        float_y = int(math.sin(f * 0.05 + i * 0.9) * 5)
-        draw_icon(img, name, cx, cy + float_y, opacity=op)
-    # subtitle
-    op_text = lerp_ease(f, 15, 35)
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Viele Handwerksbetriebe arbeiten mit einer Vielzahl einzelner Systeme.",
-                     H - 55, opacity=op_text, size=14)
+    for i,name in enumerate(ALL_ICONS):
+        cx,cy = icon_px(name)
+        float_y = int(math.sin(f*0.06+i*0.9)*5)
+        draw_icon(img, name, cx, cy+float_y)
+    for i,(a,b) in enumerate(CONNECTIONS):
+        p = lerp_e(f, i*5, i*5+28)
+        draw_line(img, *icon_px(a), *icon_px(b), progress=p,
+                  color=LINE_COLORS[i], width=1, opacity=0.60)
+    d = ImageDraw.Draw(img)
+    text_c(d, "Jedes Tool erfüllt seine Aufgabe — aber zusammenarbeiten tun sie selten.",
+           H-55, opacity=lerp_e(f,60,80), size=13)
 
+# ─── Scene 2: Freeze ──────────────────────────────────────────────────────────
 def scene02(f, img):
-    """Komplexität: chaotic data lines"""
-    for i, name in enumerate(ALL_ICONS):
-        cx, cy = icon_px(name)
-        float_y = int(math.sin(f * 0.05 + i * 0.9) * 4)
-        draw_icon(img, name, cx, cy + float_y)
-    for i, (a, b) in enumerate(CONNECTIONS):
-        p = lerp_ease(f, i*5, i*5+25)
-        x1, y1 = icon_px(a)
-        x2, y2 = icon_px(b)
-        draw_line(img, x1, y1, x2, y2, progress=p,
-                  color=LINE_COLORS[i], width=1, opacity=0.65)
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Jedes Tool erfüllt seine Aufgabe. Doch zusammenarbeiten tun sie selten.",
-                     H - 55, opacity=lerp_ease(f, 60, 80), size=14)
-
-def scene03(f, img):
-    """Chaos sichtbar: zoom out + freeze"""
-    # Already zoomed-out look: render slightly smaller scale
-    scale = lerp_ease(f, 0, 55, 1.0, 0.84)
-
-    # Create sub-image for scale effect
+    scale = lerp_e(f, 0, 55, 1.0, 0.84)
     sub = Image.fromarray(make_background())
-    for i, name in enumerate(ALL_ICONS):
-        cx, cy = icon_px(name)
-        float_y = int(math.sin(f * 0.05 + i * 0.9) * 3) if f < 60 else 0
-        draw_icon(sub, name, cx, cy + float_y)
-    for i, (a, b) in enumerate(CONNECTIONS):
-        x1, y1 = icon_px(a)
-        x2, y2 = icon_px(b)
-        draw_line(sub, x1, y1, x2, y2, progress=1.0,
-                  color=LINE_COLORS[i], width=1, opacity=0.55)
+    for i,name in enumerate(ALL_ICONS):
+        cx,cy = icon_px(name)
+        float_y = int(math.sin(f*0.05+i*0.9)*3) if f<55 else 0
+        draw_icon(sub, name, cx, cy+float_y)
+    for i,(a,b) in enumerate(CONNECTIONS):
+        draw_line(sub, *icon_px(a), *icon_px(b), progress=1.0,
+                  color=LINE_COLORS[i], width=1, opacity=0.50)
+    nw,nh = int(W*scale), int(H*scale)
+    sub_s = sub.resize((nw,nh), Image.LANCZOS)
+    img.paste(sub_s, ((W-nw)//2, (H-nh)//2))
+    d = ImageDraw.Draw(img)
+    text_c(d, "Daten wandern. Informationen gehen verloren. Stunden verschwinden.",
+           H-55, opacity=lerp_e(f,5,25), size=13)
 
-    # Scale the sub-image
-    new_w = int(W * scale)
-    new_h = int(H * scale)
-    sub_scaled = sub.resize((new_w, new_h), Image.LANCZOS)
-    ox = (W - new_w) // 2
-    oy = (H - new_h) // 2
-    img.paste(sub_scaled, (ox, oy))
-
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Daten wandern. Informationen gehen verloren.",
-                     H - 55, opacity=lerp_ease(f, 5, 25), size=14)
-
-def scene04(f, img):
-    """Neues System entsteht: central glow node appears"""
-    # Old icons fade out
-    icon_op = lerp_ease(f, 0, 40, 1.0, 0.25)
-    # Lines fade out
-    line_op = lerp_ease(f, 0, 30, 0.5, 0.0)
-    # Node scales in
-    node_scale = spring(f, 20)
-    node_op = lerp_ease(f, 20, 40)
-
-    # Ordered lines from center to icons
-    ord_op = lerp_ease(f, 45, 70)
-
-    for i, (a, b) in enumerate(CONNECTIONS[:6]):
-        x1, y1 = icon_px(a)
-        x2, y2 = icon_px(b)
-        draw_line(img, x1, y1, x2, y2, progress=1.0,
+# ─── Scene 3: Node emerges ────────────────────────────────────────────────────
+def scene03(f, img):
+    icon_op = lerp_e(f, 0, 40, 1.0, 0.20)
+    line_op = lerp_e(f, 0, 28, 0.50, 0.0)
+    node_sc = spring(f, 20)
+    node_op = lerp_e(f, 20, 42)
+    ord_op  = lerp_e(f, 48, 75)
+    for i,(a,b) in enumerate(CONNECTIONS[:6]):
+        draw_line(img, *icon_px(a), *icon_px(b), progress=1.0,
                   color=LINE_COLORS[i], width=1, opacity=line_op)
-
-    # Ordered lines center → each icon
     if ord_op > 0:
-        for i, name in enumerate(ALL_ICONS):
-            cx2, cy2 = icon_px(name)
-            p = lerp_ease(f, 50 + i*2, 75 + i*2)
+        for i,name in enumerate(ALL_ICONS):
+            cx2,cy2 = icon_px(name)
+            p = lerp_e(f, 52+i*2, 78+i*2)
             draw_line(img, CENTER_PX[0], CENTER_PX[1], cx2, cy2,
-                      progress=p, color=CYAN, width=1, opacity=ord_op * 0.6)
-
-    for i, name in enumerate(ALL_ICONS):
-        cx, cy = icon_px(name)
+                      progress=p, color=CYAN, width=1, opacity=ord_op*0.55)
+    for i,name in enumerate(ALL_ICONS):
+        cx,cy = icon_px(name)
         draw_icon(img, name, cx, cy, opacity=icon_op)
-
-    pulse = lerp_ease(f, 35, 65)
     draw_glow_node(img, CENTER_PX[0], CENTER_PX[1],
-                   scale=node_scale, opacity=node_op, pulse=pulse)
+                   scale=node_sc, opacity=node_op,
+                   pulse=lerp_e(f,38,68))
+    d = ImageDraw.Draw(img)
+    text_c(d, "Was wäre, wenn alles in einer Plattform zusammenkommt?",
+           H-55, opacity=lerp_e(f,58,78), size=14)
 
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Was wäre, wenn alles zusammenkommt?",
-                     H - 55, opacity=lerp_ease(f, 55, 75), size=14)
-
-def scene05(f, img):
-    """Craftnote dissolve"""
+# ─── Scene 4: Integration dissolve ───────────────────────────────────────────
+def scene04(f, img):
     others = [n for n in ALL_ICONS if n != "Craftnote"]
-    # Ordered lines center → icons
     for name in others:
-        cx2, cy2 = icon_px(name)
-        draw_line(img, CENTER_PX[0], CENTER_PX[1], cx2, cy2,
-                  progress=1.0, color=CYAN, width=1, opacity=0.45)
-
-    draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=1.0, opacity=1.0)
-
-    for i, name in enumerate(others):
-        cx, cy = icon_px(name)
-        draw_icon(img, name, cx, cy, opacity=0.6)
-
-    # Craftnote drifts to center
-    drift = lerp_ease(f, 0, 42)
-    orig = icon_px("Craftnote")
-    cx = int(orig[0] + (CENTER_PX[0] - orig[0]) * drift)
-    cy = int(orig[1] + (CENTER_PX[1] - orig[1]) * drift)
-    icon_op = lerp_ease(f, 42, 58, 1.0, 0.0)
-
-    # Bubble
-    bubble_op = lerp_ease(f, 18, 38)
-    if bubble_op > 0:
-        layer = Image.new("RGBA", (W, H), (0,0,0,0))
-        d = ImageDraw.Draw(layer)
-        br = int(lerp(f, 36, 52, 45, 70))
-        d.ellipse([cx-br, cy-br, cx+br, cy+br],
-                  fill=None, outline=(*CYAN, int(130*bubble_op)), width=2)
-        img_a = img.convert("RGBA")
-        img.paste(Image.alpha_composite(img_a, layer).convert("RGB"))
-
-    # Particles
-    p_prog = lerp_ease(f, 48, 82)
-    if p_prog > 0:
-        draw_particles(img, CENTER_PX[0], CENTER_PX[1], p_prog,
-                       color=(255, 152, 0))
-
+        draw_line(img, CENTER_PX[0],CENTER_PX[1], *icon_px(name),
+                  progress=1.0, color=CYAN, width=1, opacity=0.40)
+    draw_glow_node(img, CENTER_PX[0],CENTER_PX[1], scale=1.0, opacity=1.0)
+    for name in others:
+        draw_icon(img, name, *icon_px(name), opacity=0.55)
+    drift = lerp_e(f, 0, 44)
+    orig  = icon_px("Craftnote")
+    cx    = int(orig[0]+(CENTER_PX[0]-orig[0])*drift)
+    cy    = int(orig[1]+(CENTER_PX[1]-orig[1])*drift)
+    icon_op = lerp_e(f, 44, 60, 1.0, 0.0)
+    bub_op  = lerp_e(f, 18, 38)
+    if bub_op > 0:
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        br = int(lerp(f,36,54,45,70))
+        dd.ellipse([cx-br,cy-br,cx+br,cy+br],
+                   fill=None, outline=(*CYAN,int(125*bub_op)), width=2)
+        composite(img, layer)
+    pp = lerp_e(f, 50, 86)
+    if pp > 0:
+        draw_particles(img, CENTER_PX[0],CENTER_PX[1], pp, color=AMBER)
     draw_icon(img, "Craftnote", cx, cy, opacity=icon_op)
+    d = ImageDraw.Draw(img)
+    text_c(d, "Ein System, das alle Tools integriert — oder sogar ersetzt.",
+           H-55, opacity=lerp_e(f,52,70), size=13)
 
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Ein System, das bestehende Tools integriert — oder sogar ersetzt.",
-                     H - 55, opacity=lerp_ease(f, 50, 68), size=13)
+# ─── Scene 5: Dashboard UI (NEW) ─────────────────────────────────────────────
+def scene05_dashboard(f, img):
+    """Animated mock of the real platform dashboard."""
+    bg_op    = lerp_e(f, 0, 18)
+    panel_op = lerp_e(f, 12, 38)
+    cards_op = lerp_e(f, 30, 58)
+    kpi_op   = lerp_e(f, 52, 80)
+    sub_op   = lerp_e(f, 70, 100)
 
-def scene06(f, img):
-    """OneDrive → Warenwirtschaft"""
-    draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=0.7, opacity=0.6)
+    # Ambient center glow
+    layer = new_layer()
+    dd = ImageDraw.Draw(layer)
+    for r,a in [(380,12),(240,18),(140,25)]:
+        dd.ellipse([CENTER_PX[0]-r, CENTER_PX[1]-r,
+                    CENTER_PX[0]+r, CENTER_PX[1]+r],
+                   fill=(*BLUE, int(a*bg_op)))
+    composite(img, layer)
 
-    od_pos = icon_px("OneDrive")
-    mod_pos = (int(W * 0.72), H // 2)
+    # Sidebar mock
+    sidebar_x = 100
+    draw_ui_panel(img, sidebar_x, 80, 155, 520,
+                  "PROJEKTPLATTFORM", opacity=panel_op*0.7, accent=CYAN)
+    if panel_op > 0.1:
+        layer2 = new_layer()
+        dd2 = ImageDraw.Draw(layer2)
+        items = ["Dashboard", "Projekte", "Mitarbeiter",
+                 "Plantafel", "Reklamationen", "Zeiterfassung", "Archiv"]
+        for i, it in enumerate(items):
+            iy = 128 + i * 64
+            is_active = (i == 0)
+            if is_active:
+                dd2.rounded_rectangle([sidebar_x+8, iy-12, sidebar_x+147, iy+12],
+                                       radius=5, fill=(*CYAN, int(35*panel_op)))
+            base_c = WHITE if is_active else GRAY
+            tc = (*base_c, int(200*panel_op))
+            dd2.text((sidebar_x+20, iy), it, font=font(10, bold=is_active),
+                     anchor="lm", fill=tc)
+        composite(img, layer2)
 
-    # Stream
-    stream_p = lerp_ease(f, 5, 48)
-    draw_line(img, od_pos[0], od_pos[1], mod_pos[0], mod_pos[1],
-              progress=stream_p, color=CYAN, width=2, opacity=0.9)
-    draw_line(img, od_pos[0], od_pos[1], CENTER_PX[0], CENTER_PX[1],
-              progress=1.0, color=BLUE, width=1, opacity=0.35)
+    # Main area title
+    main_x = 280
+    if cards_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((main_x + 10, 60), "Dashboard", font=font(22, bold=True),
+               anchor="lm", fill=(*WHITE, int(235*cards_op)))
+        d.text((main_x + 10, 88), "Letzte 7 Tage  ·  Alle Projekte",
+               font=font(10), anchor="lm", fill=(*GRAY, int(170*cards_op)))
 
-    draw_icon(img, "OneDrive", od_pos[0], od_pos[1], glowing=True)
+    # Card 1: Meine Projekte
+    if cards_op > 0:
+        px0,py0 = main_x, 115
+        draw_ui_panel(img, px0, py0, 380, 160, "Meine Projekte",
+                      opacity=cards_op, accent=CYAN)
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        projs = [
+            ("Dachsanierung Müller",   "IN ABARBEITUNG", BLUE),
+            ("Heizung Schmidt",         "ANGEBOT AUSSTEHEND", AMBER),
+            ("Fenster Bauer GmbH",      "FERTIGGESTELLT", GREEN),
+        ]
+        for i,(pname,status,sc) in enumerate(projs):
+            ry = py0+46+i*36
+            dd3.text((px0+12, ry), pname, font=font(10),
+                     anchor="lm", fill=(*LGRAY, int(190*cards_op)))
+            # status chip
+            tw = font(8).getlength(status)+8
+            dd3.rounded_rectangle([px0+370-tw, ry-8, px0+370, ry+8],
+                                   radius=3, fill=(*sc, int(50*cards_op)),
+                                   outline=(*sc, int(100*cards_op)), width=1)
+            dd3.text((px0+370-tw//2, ry), status, font=font(8),
+                     anchor="mm", fill=(*sc, int(200*cards_op)))
+        composite(img, layer3)
 
-    mod_op = lerp_ease(f, 44, 64)
-    draw_module_card(img, mod_pos[0], mod_pos[1],
-                     "Warenwirtschaft",
-                     ["Artikel & Material", "Lagerbestände", "Bestellungen", "Lieferanten"],
-                     opacity=mod_op, color=CYAN, w=210)
+    # Card 2: Akut / Risiken
+    if cards_op > 0:
+        rx0,ry0 = main_x+400, 115
+        draw_ui_panel(img, rx0, ry0, 310, 160, "Akut / Risiken",
+                      opacity=cards_op, accent=RED)
+        layer4 = new_layer()
+        dd4 = ImageDraw.Draw(layer4)
+        risks = [
+            ("Überfällige Projekte", "0", GREEN),
+            ("Material überfällig",  "1", AMBER),
+            ("Offene Tickets",        "3", RED),
+        ]
+        for i,(rname,rval,rc) in enumerate(risks):
+            rry = ry0+46+i*36
+            dd4.text((rx0+12, rry), rname, font=font(10),
+                     anchor="lm", fill=(*LGRAY, int(185*cards_op)))
+            dd4.rounded_rectangle([rx0+280, rry-12, rx0+308, rry+12],
+                                   radius=12, fill=(*rc, int(45*cards_op)))
+            dd4.text((rx0+294, rry), rval, font=font(11,bold=True),
+                     anchor="mm", fill=(*rc, int(230*cards_op)))
+        composite(img, layer4)
 
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Material wird automatisch organisiert.",
-                     H - 55, opacity=lerp_ease(f, 52, 70), size=14)
+    # KPI row
+    if kpi_op > 0:
+        kx0 = main_x
+        draw_ui_panel(img, kx0, 296, 710, 90, "Letzte Aktivitäten",
+                      opacity=kpi_op, accent=CYAN)
+        layer5 = new_layer()
+        dd5 = ImageDraw.Draw(layer5)
+        acts = [
+            "Schmidt — Status → IN ABARBEITUNG",
+            "Dachsanierung Müller — Dokument hochgeladen",
+            "Heizung Bauer — E-Mail Ticket erstellt",
+        ]
+        for i,act in enumerate(acts):
+            ay = 328+i*22
+            dd5.text((kx0+12, ay), act, font=font(9),
+                     anchor="lm", fill=(*GRAY, int(175*kpi_op)))
+        composite(img, layer5)
 
-def scene07(f, img):
-    """Projektverwaltung"""
-    draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=0.55, opacity=0.45)
+    # Heuteplan card
+    if sub_op > 0:
+        draw_ui_panel(img, main_x, 406, 710, 80,
+                      "Heuteplan — laufende Baustellen",
+                      opacity=sub_op, accent=TEAL)
+        layer6 = new_layer()
+        dd6 = ImageDraw.Draw(layer6)
+        bs = ["Dachsanierung Müller  –  3 Mitarbeiter",
+              "Heizung Schmidt  –  Beginn 09:00"]
+        for i,b in enumerate(bs):
+            dd6.text((main_x+12, 432+i*22), b, font=font(9),
+                     anchor="lm", fill=(*LGRAY, int(180*sub_op)))
+        composite(img, layer6)
 
-    ware_pos = (int(W * 0.30), int(H * 0.40))
-    proj_pos = (int(W * 0.66), int(H * 0.40))
-    time_pos = (int(W * 0.66), int(H * 0.72))
+    d = ImageDraw.Draw(img)
+    text_c(d, "Dein Betrieb auf einen Blick — immer aktuell.",
+           H-55, opacity=lerp_e(f, 90, 115), size=14, color=WHITE)
 
-    # Warenwirtschaft → Projektverwaltung stream
-    conn_p = lerp_ease(f, 18, 55)
-    draw_line(img, ware_pos[0]+105, ware_pos[1],
-              proj_pos[0]-105, proj_pos[1],
-              progress=conn_p, color=CYAN, width=2)
-
-    # Projektverwaltung → Zeiterfassung
-    t2_p = lerp_ease(f, 50, 75)
-    draw_line(img, proj_pos[0], proj_pos[1]+60,
-              time_pos[0], time_pos[1]-55,
-              progress=t2_p, color=PURPLE, width=1)
-
-    draw_module_card(img, ware_pos[0], ware_pos[1], "Warenwirtschaft",
-                     ["Artikel & Material", "Lagerbestände"],
-                     opacity=lerp_ease(f, 0, 18), color=CYAN, w=200)
-
-    draw_module_card(img, proj_pos[0], proj_pos[1], "Projektverwaltung",
-                     ["Projekte & Aufgaben", "Fortschritt", "Ressourcen", "Meilensteine"],
-                     opacity=lerp_ease(f, 48, 68), color=(0,220,200), w=220)
-
-    draw_module_card(img, time_pos[0], time_pos[1], "Zeiterfassung",
-                     ["Arbeitszeiten", "Auswertungen"],
-                     opacity=lerp_ease(f, 58, 76), color=PURPLE, w=200)
-
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Projekte werden strukturiert verwaltet.",
-                     H - 55, opacity=lerp_ease(f, 56, 74), size=14)
-
-def scene08(f, img):
-    """Automatische Kommunikation"""
-    draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=0.5, opacity=0.4)
-
-    proj_pos = (CENTER_PX[0], int(H * 0.45))
-    email_pos = icon_px("Email")
-    od_pos   = icon_px("OneDrive")
-
-    # Email streams
-    for i, src in enumerate([(200, 160), (310, 290), (160, 420)]):
-        p = lerp_ease(f, i*10, i*10+38)
-        draw_line(img, src[0], src[1], proj_pos[0]-100, proj_pos[1],
-                  progress=p, color=PURPLE, width=1, opacity=0.75)
-
-    # OneDrive stream
-    draw_line(img, od_pos[0], od_pos[1], proj_pos[0], proj_pos[1]+60,
-              progress=lerp_ease(f, 18, 58), color=BLUE, width=1)
-
-    draw_icon(img, "Email", email_pos[0], email_pos[1], glowing=True)
-    draw_icon(img, "OneDrive", od_pos[0], od_pos[1], opacity=0.75)
-
-    draw_module_card(img, proj_pos[0], proj_pos[1], "Projektverwaltung",
-                     ["✉ E-Mail → Aufgabe", "📁 Datei angehängt",
-                      "🔔 Update gesendet", "📋 Dok. verknüpft"],
-                     opacity=lerp_ease(f, 0, 22), color=(0,220,200), w=255)
-
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Dokumente und Kommunikation finden automatisch ihren Platz.",
-                     H - 55, opacity=lerp_ease(f, 52, 70), size=13)
-
-DASH_MODULES = [
-    {"pos": (0.22, 0.30), "title": "Projekte",     "items": ["Aktive Projekte", "Aufgaben"],     "color": CYAN,         "w": 170},
-    {"pos": (0.40, 0.30), "title": "Material",      "items": ["Bestände", "Bestellungen"],        "color": (0,220,200),  "w": 170},
-    {"pos": (0.58, 0.30), "title": "Kommunikation", "items": ["E-Mails", "Benachrichtigung."],    "color": PURPLE,       "w": 170},
-    {"pos": (0.76, 0.30), "title": "Dokumente",     "items": ["Dateien", "Verträge"],             "color": (255,152,0),  "w": 170},
-    {"pos": (0.22, 0.68), "title": "Buchhaltung",   "items": ["Rechnungen", "BMD-Sync"],         "color": (229,57,53),  "w": 170},
-    {"pos": (0.40, 0.68), "title": "Kalkulation",   "items": ["BLS-Import", "Positionen"],        "color": (255,107,53), "w": 170},
-    {"pos": (0.58, 0.68), "title": "Zeiterfassung", "items": ["Arbeitszeiten", "Auswertung."],    "color": (76,175,80),  "w": 170},
-    {"pos": (0.76, 0.68), "title": "Berichte",      "items": ["KPIs", "Auswertungen"],            "color": (0,188,212),  "w": 170},
+# ─── Scene 6: Kanban Pipeline (NEW) ──────────────────────────────────────────
+KANBAN_COLS = [
+    ("INTERESSENT",        "33", (100,130,200)),
+    ("ANGEBOT AUSSTEHEND", "10", AMBER),
+    ("IN ABARBEITUNG",     "4",  BLUE),
+    ("FERTIGGESTELLT",     "5",  GREEN),
+]
+KANBAN_CARDS = [
+    # (name, start_col, end_col, anim_start)
+    ("Dachsanierung Müller",  0, 2, 35),
+    ("Heizung Schmidt",       0, 1, 55),
+    ("Fenster Bauer GmbH",    1, 3, 70),
+    ("Rohrbau Meier",         2, 2,  0),
+    ("Abdichtung Krämer",     0, 0,  0),
+    ("WaWi? Schneider",       1, 1,  0),
 ]
 
-def scene09(f, img):
-    """Finale Übersicht: full dashboard"""
-    # Scale from 1.15 → 1 (camera pulls back)
-    scale = lerp_ease(f, 0, 55, 1.12, 1.0)
-    sub = Image.fromarray(make_background())
+def scene06_kanban(f, img):
+    """Animated Kanban pipeline board."""
+    title_op = lerp_e(f, 0, 20)
+    cols_op   = lerp_e(f, 8, 35)
+    cards_op  = lerp_e(f, 28, 58)
+    move_p    = lerp_e(f, 40, 100)
 
-    draw_glow_node(sub, CENTER_PX[0], CENTER_PX[1], scale=0.45, opacity=0.35)
+    # Title
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Projektübersicht", font=font(22,bold=True),
+               anchor="mm", fill=(*WHITE, int(235*title_op)))
+        d.text((W//2, 72), "Von der Anfrage bis zur Fertigstellung — jeder Schritt sichtbar.",
+               font=font(11), anchor="mm", fill=(*GRAY, int(170*title_op)))
 
-    for i, m in enumerate(DASH_MODULES):
-        mx = int(m["pos"][0] * W)
-        my = int(m["pos"][1] * H)
-        mo = lerp_ease(f, i*4, i*4+20)
-        draw_line(sub, CENTER_PX[0], CENTER_PX[1], mx, my,
-                  progress=1.0, color=m["color"], width=1,
-                  opacity=lerp_ease(f, i*4, i*4+20) * 0.25)
-        draw_module_card(sub, mx, my, m["title"], m["items"],
+    col_w  = 270
+    col_h  = 490
+    col_gap = 24
+    board_x = (W - (col_w*4 + col_gap*3))//2
+    board_y = 100
+
+    col_x_list = [board_x + i*(col_w+col_gap) for i in range(4)]
+
+    for ci,(cname,ccount,ccolor) in enumerate(KANBAN_COLS):
+        cx0 = col_x_list[ci]
+        op  = lerp_e(f, ci*6+8, ci*6+28) * cols_op
+        if op <= 0: continue
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        # Column bg
+        dd.rounded_rectangle([cx0, board_y, cx0+col_w, board_y+col_h],
+                              radius=8, fill=(10,12,28,int(180*op)))
+        # Header
+        dd.rounded_rectangle([cx0, board_y, cx0+col_w, board_y+38],
+                              radius=8, fill=(*ccolor, int(40*op)))
+        dd.rounded_rectangle([cx0, board_y+28, cx0+col_w, board_y+38],
+                              radius=0, fill=(*ccolor, int(40*op)))
+        dd.text((cx0+12, board_y+18), cname, font=font(10,bold=True),
+                anchor="lm", fill=(*WHITE, int(215*op)))
+        # Count badge
+        bw = 28
+        dd.rounded_rectangle([cx0+col_w-bw-6, board_y+7, cx0+col_w-6, board_y+30],
+                              radius=10, fill=(*ccolor, int(60*op)))
+        dd.text((cx0+col_w-bw//2-6, board_y+18), ccount, font=font(10,bold=True),
+                anchor="mm", fill=(*WHITE, int(230*op)))
+        composite(img, layer)
+
+    # Static background cards
+    static_cards = [
+        (0, "Rohrbau Meier",     (100,130,200)),
+        (0, "Abdichtung Krämer", (80,110,170)),
+        (1, "WaWi? Schneider",   AMBER),
+        (2, "Projekt CN-XX",     BLUE),
+        (3, "Projekt abg. 1",    GREEN),
+        (3, "Projekt abg. 2",    (50,170,100)),
+    ]
+    if cards_op > 0.05:
+        for ci,cname,ccolor in static_cards:
+            cx0 = col_x_list[ci]
+            op  = cards_op * lerp_e(f, ci*6+28, ci*6+48)
+            layer = new_layer()
+            dd   = ImageDraw.Draw(layer)
+            cy0  = board_y + 50 + (static_cards.index((ci,cname,ccolor)) % 3) * 72
+            dd.rounded_rectangle([cx0+8, cy0, cx0+col_w-8, cy0+58],
+                                  radius=6, fill=(*ccolor, int(15*op)),
+                                  outline=(*ccolor, int(55*op)), width=1)
+            dd.text((cx0+16, cy0+28), cname, font=font(10),
+                    anchor="lm", fill=(*LGRAY, int(195*op)))
+            composite(img, layer)
+
+    # Animated moving card: "Dachsanierung Müller" col 0 → col 2
+    if move_p > 0 and cards_op > 0.1:
+        src_cx = col_x_list[0]
+        dst_cx = col_x_list[2]
+        t_move = clamp(move_p)
+        cx0    = int(src_cx + (dst_cx - src_cx) * ease_in_out(t_move))
+        cy0    = board_y + 120
+        op_m   = lerp_e(f, 30, 50) * min(1.0, lerp_e(f, 115, 150, 1.0, 0.0))
+        if op_m > 0:
+            layer = new_layer()
+            dd    = ImageDraw.Draw(layer)
+            dd.rounded_rectangle([cx0+8, cy0, cx0+col_w-8, cy0+58],
+                                  radius=6, fill=(*CYAN, int(22*op_m)),
+                                  outline=(*CYAN, int(100*op_m)), width=2)
+            dd.text((cx0+16, cy0+20), "Dachsanierung Müller", font=font(10,bold=True),
+                    anchor="lm", fill=(*WHITE, int(220*op_m)))
+            draw_status_badge(img, cx0+16, cy0+42,
+                              "IN ABARBEITUNG", BLUE, opacity=op_m)
+            composite(img, layer)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Von der Anfrage bis zur Fertigstellung — kein Auftrag geht verloren.",
+           H-55, opacity=lerp_e(f, 105, 135), size=13, color=WHITE)
+
+# ─── Scene 7: Zeiterfassung Live (NEW) ───────────────────────────────────────
+def scene07_zeit(f, img):
+    """Live timer + stats — Zeiterfassung."""
+    title_op = lerp_e(f, 0, 20)
+    panel_op = lerp_e(f, 12, 38)
+    stats_op = lerp_e(f, 35, 60)
+    timer_op = lerp_e(f, 22, 48)
+
+    # Title
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Zeiterfassung", font=font(22,bold=True),
+               anchor="mm", fill=(*WHITE, int(235*title_op)))
+        d.text((W//2, 72), "Wer arbeitet wo — und wie produktiv.",
+               font=font(11), anchor="mm", fill=(*GRAY, int(165*title_op)))
+
+    # Live timer panel (center)
+    tp_x, tp_y, tp_w, tp_h = 340, 100, 600, 110
+    draw_ui_panel(img, tp_x, tp_y, tp_w, tp_h, "Laufende Stempeluhr",
+                  opacity=panel_op, accent=CYAN)
+
+    if timer_op > 0:
+        # Animated seconds counter
+        seconds = int(f * 1.8) % 3600
+        h_t     = seconds // 3600
+        m_t     = (seconds % 3600) // 60
+        s_t     = seconds % 60
+        timer_str = f"{h_t:02d}:{m_t:02d}:{s_t:02d}"
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        # Glow behind timer
+        for gr,ga in [(80,15),(55,25),(30,40)]:
+            dd.ellipse([W//2-gr, tp_y+54-gr//2, W//2+gr, tp_y+54+gr//2],
+                       fill=(*CYAN, int(ga*timer_op)))
+        dd.text((W//2, tp_y+54), timer_str, font=font(36,bold=True),
+                anchor="mm", fill=(*CYAN, int(245*timer_op)))
+        dd.text((W//2, tp_y+88), "● LIVE — 2 Mitarbeiter aktiv",
+                font=font(10), anchor="mm",
+                fill=(*GREEN, int(200*timer_op)))
+        composite(img, layer)
+
+    # Stats row
+    stat_defs = [
+        ("6.50 h",   "Stunden",      WHITE),
+        ("4",        "Einträge",      LGRAY),
+        ("2",        "Live",         GREEN),
+        ("4.10 h",   "Produktiv",     CYAN),
+        ("2.40 h",   "Unproduktiv",   AMBER),
+        ("63.1 %",   "Produktivität", BLUE),
+    ]
+    if stats_op > 0:
+        sw  = 170
+        sgap = 20
+        total_w = len(stat_defs)*sw + (len(stat_defs)-1)*sgap
+        sx0 = (W - total_w)//2
+        sy0 = 238
+        for i,(val,lbl,col) in enumerate(stat_defs):
+            bx = sx0 + i*(sw+sgap)
+            op_i = lerp_e(f, 38+i*5, 58+i*5) * stats_op
+            draw_ui_panel(img, bx, sy0, sw, 68, "", opacity=op_i*0.7, accent=col)
+            if op_i > 0.05:
+                draw_ui_stat(img, bx+sw//2, sy0+30, val, lbl,
+                             opacity=op_i, color=col, vsize=20)
+
+    # Employee active rows
+    emp_op = lerp_e(f, 72, 100) * stats_op
+    if emp_op > 0.05:
+        ex0, ey0 = 200, 336
+        draw_ui_panel(img, ex0, ey0, 880, 108,
+                      "Aktive Mitarbeiter", opacity=emp_op, accent=GREEN)
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        employees = [
+            ("Thomas K.",   "Dachsanierung Müller",    "seit  07:45", GREEN),
+            ("Sandra M.",   "Bestellübersicht Büro",   "seit  08:12", CYAN),
+        ]
+        for i,(name,proj,seit,ec) in enumerate(employees):
+            ry = ey0+48+i*30
+            # dot
+            dd.ellipse([ex0+12, ry-5, ex0+22, ry+5], fill=(*ec, int(220*emp_op)))
+            dd.text((ex0+32, ry), name, font=font(10,bold=True),
+                    anchor="lm", fill=(*WHITE, int(215*emp_op)))
+            dd.text((ex0+160, ry), proj, font=font(10),
+                    anchor="lm", fill=(*GRAY, int(180*emp_op)))
+            dd.text((ex0+860, ry), seit, font=font(9),
+                    anchor="rm", fill=(*ec, int(195*emp_op)))
+        composite(img, layer)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Arbeitszeiten, Produktivität und Urlaub — alles in einer Ansicht.",
+           H-55, opacity=lerp_e(f, 92, 118), size=13, color=WHITE)
+
+# ─── Scene 8: Ticketsystem (NEW) ─────────────────────────────────────────────
+def scene08_tickets(f, img):
+    """E-Mail → Ticket automation."""
+    title_op = lerp_e(f, 0, 20)
+    arrow_op = lerp_e(f, 18, 45)
+    list_op  = lerp_e(f, 45, 72)
+    deep_op  = lerp_e(f, 70, 100)
+
+    # Title
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Ticketsystem", font=font(22,bold=True),
+               anchor="mm", fill=(*WHITE, int(235*title_op)))
+
+    # E-Mail icon → Arrow → Ticket
+    email_cx, email_cy = 310, 200
+    ticket_cx, ticket_cy = 720, 200
+    arrow_mid  = 515
+
+    if arrow_op > 0:
+        # Email box
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        # Email icon
+        for gr,ga in [(55,18),(38,30),(22,48)]:
+            dd.ellipse([email_cx-gr,email_cy-gr,email_cx+gr,email_cy+gr],
+                       fill=(156,39,176, int(ga*arrow_op)))
+        dd.rounded_rectangle([email_cx-40,email_cy-28,email_cx+40,email_cy+28],
+                              radius=8, fill=(156,39,176,int(30*arrow_op)),
+                              outline=(156,39,176,int(120*arrow_op)), width=2)
+        dd.text((email_cx, email_cy), "✉", font=font(22),
+                anchor="mm", fill=(*WHITE, int(230*arrow_op)))
+        dd.text((email_cx, email_cy+44), "E-Mail Eingang",
+                font=font(10), anchor="mm",
+                fill=(*GRAY, int(190*arrow_op)))
+        # Arrow line
+        p_arr = lerp_e(f, 25, 52)
+        arr_x = int(email_cx+45 + (ticket_cx-45 - email_cx-45)*p_arr)
+        dd.line([(email_cx+45, email_cy), (arr_x, email_cy)],
+                fill=(*CYAN, int(200*arrow_op)), width=2)
+        if p_arr > 0.9:
+            dd.polygon([
+                (arr_x, email_cy-8),
+                (arr_x+14, email_cy),
+                (arr_x, email_cy+8)],
+                fill=(*CYAN, int(200*arrow_op)))
+        # Label above arrow
+        if p_arr > 0.5:
+            dd.text((arrow_mid, email_cy-22), "→  automatisch",
+                    font=font(9), anchor="mm",
+                    fill=(*CYAN, int(170*arrow_op*(p_arr-0.5)*2)))
+        composite(img, layer)
+
+        if p_arr > 0.85:
+            # Ticket box
+            layer2 = new_layer()
+            dd2 = ImageDraw.Draw(layer2)
+            t_op  = lerp_e(f, 40, 60)
+            for gr,ga in [(55,18),(38,28),(22,45)]:
+                dd2.ellipse([ticket_cx-gr,ticket_cy-gr,
+                             ticket_cx+gr,ticket_cy+gr],
+                            fill=(*CYAN, int(ga*t_op)))
+            dd2.rounded_rectangle([ticket_cx-55,ticket_cy-38,
+                                   ticket_cx+55,ticket_cy+38],
+                                  radius=8, fill=(*CYAN, int(22*t_op)),
+                                  outline=(*CYAN, int(110*t_op)), width=2)
+            dd2.text((ticket_cx, ticket_cy-8), "TKT-2026", font=font(12,bold=True),
+                     anchor="mm", fill=(*WHITE, int(230*t_op)))
+            dd2.text((ticket_cx, ticket_cy+12), "Neues Ticket",
+                     font=font(9), anchor="mm",
+                     fill=(*LGRAY, int(180*t_op)))
+            draw_status_badge(img, ticket_cx-20, ticket_cy+32,
+                              "offen", AMBER, opacity=t_op)
+            composite(img, layer2)
+
+    # Ticket list
+    if list_op > 0.05:
+        lx0, ly0 = 140, 280
+        draw_ui_panel(img, lx0, ly0, 1000, 200, "Ticketsystem — Übersicht",
+                      opacity=list_op, accent=CYAN)
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        tickets = [
+            ("TKT-2026-0075", "Re: ISOTEC Angebot AN-091-26-02",  "offen", "mittel", "E-Mail Eingang"),
+            ("TKT-2026-0074", "WG: Halteverbotszone",              "offen", "mittel", "E-Mail Eingang"),
+            ("TKT-2026-0073", "Anfrage Abdichtung Ottsen",         "offen", "niedrig","E-Mail Eingang"),
+            ("TKT-2026-0072", "ISOTEC-Schadensanalyse Reinz",      "offen", "niedrig","E-Mail Eingang"),
+        ]
+        # header
+        for xi,hd in [(lx0+12,"Ticket"), (lx0+155,"Betreff"),
+                      (lx0+590,"Status"), (lx0+700,"Priorität"),
+                      (lx0+830,"Quelle")]:
+            dd3.text((xi, ly0+46), hd, font=font(9,bold=True),
+                     anchor="lm", fill=(*CYAN, int(160*list_op)))
+        for i,(tid,sbj,st,pri,qll) in enumerate(tickets):
+            ry = ly0+68+i*32
+            op_r = lerp_e(f, 52+i*6, 70+i*6) * list_op
+            if op_r <= 0: continue
+            dd3.rounded_rectangle([lx0+6, ry-10, lx0+994, ry+12],
+                                   radius=3, fill=(255,255,255,int(6*op_r)))
+            dd3.text((lx0+12, ry), tid, font=font(9,bold=True),
+                     anchor="lm", fill=(*CYAN, int(200*op_r)))
+            dd3.text((lx0+155, ry), sbj, font=font(9),
+                     anchor="lm", fill=(*LGRAY, int(190*op_r)))
+            sc_st = RED if st=="offen" else GREEN
+            dd3.text((lx0+590, ry), st, font=font(9),
+                     anchor="lm", fill=(*sc_st, int(205*op_r)))
+            sc_pr = AMBER if pri=="mittel" else GRAY
+            dd3.text((lx0+700, ry), pri, font=font(9),
+                     anchor="lm", fill=(*sc_pr, int(200*op_r)))
+            dd3.text((lx0+830, ry), qll, font=font(9),
+                     anchor="lm", fill=(*GRAY, int(175*op_r)))
+        composite(img, layer3)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Jede E-Mail wird automatisch zum Ticket. Keine Anfrage geht verloren.",
+           H-55, opacity=lerp_e(f, 80, 108), size=13, color=WHITE)
+
+# ─── Scene 9: Warenwirtschaft ─────────────────────────────────────────────────
+def scene09_ware(f, img):
+    draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=0.65, opacity=0.55)
+    od_pos  = icon_px("OneDrive")
+    mod_pos = (int(W*0.72), H//2)
+    stream_p = lerp_e(f, 5, 48)
+    draw_line(img, od_pos[0],od_pos[1], mod_pos[0],mod_pos[1],
+              progress=stream_p, color=CYAN, width=2, opacity=0.9)
+    draw_line(img, od_pos[0],od_pos[1], CENTER_PX[0],CENTER_PX[1],
+              progress=1.0, color=BLUE, width=1, opacity=0.32)
+    draw_icon(img, "OneDrive", od_pos[0],od_pos[1], glowing=True)
+    mod_op = lerp_e(f, 44, 64)
+    draw_module_card(img, mod_pos[0],mod_pos[1], "Warenwirtschaft",
+                     ["Artikel & Material", "Lagerbestände",
+                      "Bestellübersicht", "Liefertermine"],
+                     opacity=mod_op, color=CYAN, w=215)
+    d = ImageDraw.Draw(img)
+    text_c(d, "Material wird automatisch organisiert und nachverfolgt.",
+           H-55, opacity=lerp_e(f,52,70), size=14)
+
+# ─── Scene 10: Projektverwaltung ─────────────────────────────────────────────
+def scene10_proj(f, img):
+    draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=0.5, opacity=0.42)
+    ware_pos = (int(W*0.30), int(H*0.40))
+    proj_pos = (int(W*0.66), int(H*0.40))
+    time_pos = (int(W*0.66), int(H*0.72))
+    conn_p = lerp_e(f, 18, 55)
+    draw_line(img, ware_pos[0]+105,ware_pos[1],
+              proj_pos[0]-105,proj_pos[1],
+              progress=conn_p, color=CYAN, width=2)
+    t2_p = lerp_e(f, 50, 75)
+    draw_line(img, proj_pos[0],proj_pos[1]+60,
+              time_pos[0],time_pos[1]-55,
+              progress=t2_p, color=PURPLE, width=1)
+    draw_module_card(img, ware_pos[0],ware_pos[1], "Warenwirtschaft",
+                     ["Artikel & Material","Lagerbestände"],
+                     opacity=lerp_e(f,0,18), color=CYAN, w=200)
+    draw_module_card(img, proj_pos[0],proj_pos[1], "Projektverwaltung",
+                     ["Kanban & Aufgaben","Fortschritt","Ressourcen","Meilensteine"],
+                     opacity=lerp_e(f,48,68), color=(0,220,200), w=220)
+    draw_module_card(img, time_pos[0],time_pos[1], "Zeiterfassung",
+                     ["Arbeitszeiten","Auswertungen"],
+                     opacity=lerp_e(f,58,76), color=PURPLE, w=200)
+    d = ImageDraw.Draw(img)
+    text_c(d, "Projekte, Aufgaben und Zeiten — strukturiert auf einen Blick.",
+           H-55, opacity=lerp_e(f,56,74), size=14)
+
+# ─── Scene 11: Social Proof — ISOTEC / VITERMA (NEW) ─────────────────────────
+ISOTEC_MODULES = [
+    "Auswertung Arbeitszeit",
+    "Bestellformular",
+    "Bestellübersicht",
+    "Lagerbestandsführung",
+    "Ticketsystem",
+    "Rechnungen",
+    "Aufgaben",
+]
+VITERMA_MODULES = [
+    "Bestellformular",
+    "MediaPlan",
+    "Projektverwaltung",
+    "Rechnungen",
+    "Warenwirtschaft",
+    "Aufgaben",
+]
+
+def scene11_social(f, img):
+    """Split screen: ISOTEC vs. VITERMA — each has their own module set."""
+    title_op  = lerp_e(f, 0, 22)
+    left_op   = lerp_e(f, 14, 42)
+    right_op  = lerp_e(f, 28, 58)
+    badge_op  = lerp_e(f, 55, 85)
+    sub_op    = lerp_e(f, 95, 118)
+
+    # Divider line center
+    if title_op > 0:
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        dd.line([(W//2, 80), (W//2, H-80)],
+                fill=(*CYAN, int(40*title_op)), width=1)
+        composite(img, layer)
+
+    # Title
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Individuell konfiguriert. Für jeden Betrieb.",
+               font=font(20,bold=True), anchor="mm",
+               fill=(*WHITE, int(235*title_op)))
+
+    card_w = 520
+    card_h = 440
+
+    # Left panel: ISOTEC
+    if left_op > 0:
+        lx0, ly0 = 60, 88
+        draw_ui_panel(img, lx0, ly0, card_w, card_h,
+                      "ISOTEC  ·  7 Module", opacity=left_op, accent=RED)
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        # Logo text
+        dd.text((lx0+12, ly0+48), "ISOTEC", font=font(28,bold=True),
+                anchor="lm", fill=(*RED, int(220*left_op)))
+        dd.text((lx0+12, ly0+80), "IMMER BESSER.",
+                font=font(10), anchor="lm",
+                fill=(*GRAY, int(150*left_op)))
+        dd.line([(lx0+12, ly0+98),(lx0+card_w-12, ly0+98)],
+                fill=(*RED, int(40*left_op)), width=1)
+        for i,mod in enumerate(ISOTEC_MODULES):
+            my = ly0+118+i*45
+            op_m = lerp_e(f, 18+i*4, 36+i*4) * left_op
+            dd.rounded_rectangle([lx0+12, my-14, lx0+card_w-12, my+14],
+                                  radius=5, fill=(*RED, int(14*op_m)))
+            dd.ellipse([lx0+20, my-5, lx0+30, my+5],
+                       fill=(*RED, int(180*op_m)))
+            dd.text((lx0+40, my), mod, font=font(11),
+                    anchor="lm", fill=(*LGRAY, int(200*op_m)))
+            # Live badge
+            dd.rounded_rectangle([lx0+card_w-60, my-9, lx0+card_w-12, my+9],
+                                  radius=8, fill=(*GREEN, int(35*op_m)))
+            dd.text((lx0+card_w-36, my), "Live", font=font(9,bold=True),
+                    anchor="mm", fill=(*GREEN, int(210*op_m)))
+        composite(img, layer)
+
+    # Right panel: VITERMA (dark theme)
+    if right_op > 0:
+        rx0, ry0 = W - card_w - 60, 88
+        draw_ui_panel(img, rx0, ry0, card_w, card_h,
+                      "VITERMA  ·  6 Module", opacity=right_op, accent=TEAL)
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        dd.text((rx0+12, ry0+48), "VITERMA", font=font(28,bold=True),
+                anchor="lm", fill=(*TEAL, int(220*right_op)))
+        dd.text((rx0+12, ry0+80), "Unternehmenssteuerung.",
+                font=font(10), anchor="lm",
+                fill=(*GRAY, int(150*right_op)))
+        dd.line([(rx0+12, ry0+98),(rx0+card_w-12, ry0+98)],
+                fill=(*TEAL, int(40*right_op)), width=1)
+        for i,mod in enumerate(VITERMA_MODULES):
+            my = ry0+118+i*53
+            op_m = lerp_e(f, 30+i*4, 50+i*4) * right_op
+            dd.rounded_rectangle([rx0+12, my-14, rx0+card_w-12, my+14],
+                                  radius=5, fill=(*TEAL, int(14*op_m)))
+            dd.ellipse([rx0+20, my-5, rx0+30, my+5],
+                       fill=(*TEAL, int(180*op_m)))
+            dd.text((rx0+40, my), mod, font=font(11),
+                    anchor="lm", fill=(*LGRAY, int(200*op_m)))
+            dd.rounded_rectangle([rx0+card_w-60, my-9, rx0+card_w-12, my+9],
+                                  radius=8, fill=(*TEAL, int(35*op_m)))
+            dd.text((rx0+card_w-36, my), "Live", font=font(9,bold=True),
+                    anchor="mm", fill=(*TEAL, int(210*op_m)))
+        composite(img, layer)
+
+    # Sub-text
+    d = ImageDraw.Draw(img)
+    text_c(d, "Jede Plattform wird individuell konfiguriert — genau für deinen Betrieb.",
+           H-55, opacity=sub_op, size=13, color=WHITE)
+
+# ─── Scene 12: Full overview ──────────────────────────────────────────────────
+DASH_MODULES = [
+    {"pos":(0.20,0.28),"title":"Projekte",     "items":["Kanban","Aufgaben"],          "color":CYAN,           "w":165},
+    {"pos":(0.38,0.28),"title":"Material",     "items":["Bestände","Bestellungen"],    "color":(0,220,200),    "w":165},
+    {"pos":(0.56,0.28),"title":"Kommunikation","items":["E-Mails","Tickets"],          "color":PURPLE,         "w":165},
+    {"pos":(0.74,0.28),"title":"Dokumente",    "items":["Dateien","Verträge"],         "color":(255,152,0),    "w":165},
+    {"pos":(0.20,0.68),"title":"Buchhaltung",  "items":["Rechnungen","BMD-Sync"],     "color":(229,57,53),    "w":165},
+    {"pos":(0.38,0.68),"title":"Kalkulation",  "items":["BLS-Import","Positionen"],   "color":ORANGE,         "w":165},
+    {"pos":(0.56,0.68),"title":"Zeiterfassung","items":["Arbeitszeiten","Auswertung"],"color":(76,175,80),    "w":165},
+    {"pos":(0.74,0.68),"title":"Berichte",     "items":["KPIs","Auswertungen"],       "color":(0,188,212),    "w":165},
+]
+
+def scene12_overview(f, img):
+    scale = lerp_e(f, 0, 55, 1.12, 1.0)
+    sub   = Image.fromarray(make_background())
+    draw_glow_node(sub, CENTER_PX[0],CENTER_PX[1], scale=0.42, opacity=0.30)
+    for i,m in enumerate(DASH_MODULES):
+        mx = int(m["pos"][0]*W)
+        my = int(m["pos"][1]*H)
+        mo = lerp_e(f, i*4, i*4+22)
+        draw_line(sub, CENTER_PX[0],CENTER_PX[1], mx,my,
+                  progress=1.0, color=m["color"], width=1, opacity=mo*0.22)
+        draw_module_card(sub, mx,my, m["title"],m["items"],
                          opacity=mo, color=m["color"], w=m["w"])
+    nw,nh = int(W*scale),int(H*scale)
+    sub_s = sub.resize((nw,nh), Image.LANCZOS)
+    img.paste(sub_s, ((W-nw)//2,(H-nh)//2))
+    d = ImageDraw.Draw(img)
+    text_c(d, "Aus vielen Programmen wird eine Plattform.",
+           H-55, opacity=lerp_e(f,62,82), size=14)
 
-    # Scale
-    new_w = int(W * scale)
-    new_h = int(H * scale)
-    sub_s = sub.resize((new_w, new_h), Image.LANCZOS)
-    ox = (W - new_w) // 2
-    oy = (H - new_h) // 2
-    img.paste(sub_s, (ox, oy))
-
-    draw = ImageDraw.Draw(img)
-    draw_text_center(draw, "Aus vielen Programmen wird eine Plattform.",
-                     H - 55, opacity=lerp_ease(f, 60, 78), size=14)
-
-def scene10(f, img):
-    """Finale Botschaft: tagline + fade to black"""
+# ─── Scene 13: Finale ─────────────────────────────────────────────────────────
+def scene13_finale(f, img):
     # Ambient glow
-    glow_alpha = int((0.25 + math.sin(f * 0.1) * 0.08) * 200)
-    layer = Image.new("RGBA", (W, H), (0,0,0,0))
-    d = ImageDraw.Draw(layer)
-    r = 320
-    for i in range(6, 0, -1):
-        ri = r * i // 5
-        ai = int(glow_alpha * i / 6)
-        d.ellipse([CENTER_PX[0]-ri, CENTER_PX[1]-ri,
-                   CENTER_PX[0]+ri, CENTER_PX[1]+ri],
-                  fill=(*BLUE, ai))
-    img_a = img.convert("RGBA")
-    img.paste(Image.alpha_composite(img_a, layer).convert("RGB"))
+    glow_a = int((0.28 + math.sin(f*0.12)*0.09) * 200)
+    layer  = new_layer()
+    dd     = ImageDraw.Draw(layer)
+    for r,a in [(380,int(glow_a*0.08)),(260,int(glow_a*0.14)),(150,int(glow_a*0.22))]:
+        dd.ellipse([CENTER_PX[0]-r,CENTER_PX[1]-r,
+                    CENTER_PX[0]+r,CENTER_PX[1]+r],
+                   fill=(*BLUE, a))
+    composite(img, layer)
 
-    # Horizontal line
-    line_w = int(lerp_ease(f, 5, 22) * 320)
-    if line_w > 0:
-        draw = ImageDraw.Draw(img)
-        lx0 = CENTER_PX[0] - line_w//2
-        lx1 = CENTER_PX[0] + line_w//2
-        draw.line([(lx0, CENTER_PX[1]-52), (lx1, CENTER_PX[1]-52)],
-                  fill=(*CYAN, int(lerp_ease(f, 5, 20) * 120)), width=1)
+    # Horizontal accent lines
+    line_op = lerp_e(f, 5, 25)
+    if line_op > 0:
+        d = ImageDraw.Draw(img)
+        lw = int(lerp_e(f,5,25)*350)
+        if lw > 0:
+            d.line([(CENTER_PX[0]-lw, CENTER_PX[1]-65),
+                    (CENTER_PX[0]+lw, CENTER_PX[1]-65)],
+                   fill=(*CYAN, int(100*line_op)), width=1)
+            d.line([(CENTER_PX[0]-lw//2, CENTER_PX[1]+95),
+                    (CENTER_PX[0]+lw//2, CENTER_PX[1]+95)],
+                   fill=(*CYAN, int(60*line_op)), width=1)
 
-    draw = ImageDraw.Draw(img)
     # Line 1
-    op1 = lerp_ease(f, 10, 30)
-    try:
-        font_big = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 52)
-        font_big_bold = ImageFont.truetype(
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 52)
-    except:
-        font_big = font_big_bold = ImageFont.load_default()
-
-    draw.text((CENTER_PX[0], CENTER_PX[1] - 20), "Ein Betriebssystem",
-              font=font_big, anchor="mm",
-              fill=(*WHITE, int(op1 * 245)))
-
-    # Line 2 (gradient-ish: cyan color)
-    op2 = lerp_ease(f, 30, 52)
-    draw.text((CENTER_PX[0], CENTER_PX[1] + 48), "für deinen Betrieb.",
-              font=font_big_bold, anchor="mm",
-              fill=(*CYAN, int(op2 * 245)))
-
+    op1 = lerp_e(f, 10, 32)
+    # Line 2
+    op2 = lerp_e(f, 32, 56)
     # Subtitle
-    op3 = lerp_ease(f, 52, 68)
-    draw_text_center(draw, "Übersichtlich · Strukturiert · Für deinen Betrieb gebaut",
-                     CENTER_PX[1] + 100, opacity=op3, size=14)
+    op3 = lerp_e(f, 56, 75)
+    # CTA
+    op4 = lerp_e(f, 80, 100)
+
+    d = ImageDraw.Draw(img)
+    d.text((CENTER_PX[0], CENTER_PX[1]-22), "Ein Betriebssystem",
+           font=font(54), anchor="mm",
+           fill=(*WHITE, int(op1*248)))
+    d.text((CENTER_PX[0], CENTER_PX[1]+48), "für deinen Betrieb.",
+           font=font(54,bold=True), anchor="mm",
+           fill=(*CYAN, int(op2*248)))
+    text_c(d, "Übersichtlich  ·  Strukturiert  ·  Individuell konfiguriert",
+           CENTER_PX[1]+105, opacity=op3, size=15, color=LGRAY)
+
+    # CTA pill button
+    if op4 > 0.05:
+        layer2 = new_layer()
+        dd2    = ImageDraw.Draw(layer2)
+        bw,bh  = 280, 42
+        bx0    = CENTER_PX[0]-bw//2
+        by0    = CENTER_PX[1]+148
+        dd2.rounded_rectangle([bx0,by0,bx0+bw,by0+bh], radius=21,
+                               fill=(*CYAN, int(35*op4)),
+                               outline=(*CYAN, int(120*op4)), width=2)
+        dd2.text((CENTER_PX[0], by0+bh//2), "Jetzt entdecken →",
+                 font=font(14,bold=True), anchor="mm",
+                 fill=(*WHITE, int(235*op4)))
+        composite(img, layer2)
 
     # Fade to black
-    fade = lerp_ease(f, 74, 89)
+    fade = lerp_e(f, 132, 155)
     if fade > 0:
-        overlay = Image.new("RGB", (W, H), (0,0,0))
-        img.paste(overlay, mask=Image.fromarray(
-            np.full((H, W), int(fade * 255), dtype=np.uint8)))
+        overlay = Image.new("RGB",(W,H),(0,0,0))
+        mask    = Image.fromarray(np.full((H,W),int(fade*255),dtype=np.uint8))
+        img.paste(overlay, mask=mask)
 
 # ─── Scene dispatch ───────────────────────────────────────────────────────────
-SCENES = [scene01, scene02, scene03, scene04, scene05,
-          scene06, scene07, scene08, scene09, scene10]
-SCENE_LEN = 90  # frames per scene
+SCENE_FNS = [
+    scene00,              # 0
+    scene01,              # 1
+    scene02,              # 2
+    scene03,              # 3
+    scene04,              # 4
+    scene05_dashboard,    # 5  NEW
+    scene06_kanban,       # 6  NEW
+    scene07_zeit,         # 7  NEW
+    scene08_tickets,      # 8  NEW
+    scene09_ware,         # 9
+    scene10_proj,         # 10
+    scene11_social,       # 11 NEW
+    scene12_overview,     # 12
+    scene13_finale,       # 13
+]
 
 def render_frame(global_frame: int) -> np.ndarray:
-    scene_idx = global_frame // SCENE_LEN
-    local_frame = global_frame % SCENE_LEN
-    if scene_idx >= len(SCENES):
-        scene_idx = len(SCENES) - 1
-
-    bg = make_background(global_frame)
+    # Find scene
+    scene_idx = 0
+    for i,start in enumerate(SCENE_STARTS):
+        if global_frame >= start:
+            scene_idx = i
+    local_frame = global_frame - SCENE_STARTS[scene_idx]
+    bg  = make_background()
     img = Image.fromarray(bg)
-    SCENES[scene_idx](local_frame, img)
+    SCENE_FNS[scene_idx](local_frame, img)
     return np.array(img)
 
-# ─── Main render loop ─────────────────────────────────────────────────────────
+# ─── Main ─────────────────────────────────────────────────────────────────────
 def main():
     import imageio_ffmpeg
     ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
-    print(f"Using ffmpeg: {ffmpeg_path}")
-    print(f"Rendering {TOTAL_FRAMES} frames @ {W}x{H} {FPS}fps → {OUT_PATH}")
+    print(f"ffmpeg: {ffmpeg_path}")
+    duration = TOTAL_FRAMES / FPS
+    print(f"Rendering {TOTAL_FRAMES} frames @ {W}×{H} {FPS}fps  →  {duration:.1f}s")
+    print(f"Output: {OUT_PATH}\n")
 
     writer = imageio.get_writer(
-        OUT_PATH,
-        fps=FPS,
-        codec="libx264",
-        quality=None,
-        ffmpeg_params=["-crf", "20", "-preset", "fast",
-                       "-pix_fmt", "yuv420p"],
+        OUT_PATH, fps=FPS, codec="libx264", quality=None,
+        ffmpeg_params=["-crf","18","-preset","fast","-pix_fmt","yuv420p"],
         ffmpeg_log_level="warning",
     )
 
@@ -727,13 +1186,16 @@ def main():
         frame = render_frame(f)
         writer.append_data(frame)
         if f % 30 == 0:
-            pct = f / TOTAL_FRAMES * 100
-            scene = f // SCENE_LEN + 1
-            print(f"  {pct:5.1f}% — frame {f:4d}/{TOTAL_FRAMES} (Szene {scene}/10)", flush=True)
+            # Find scene name
+            si = 0
+            for i,s in enumerate(SCENE_STARTS):
+                if f >= s: si = i
+            print(f"  {f/TOTAL_FRAMES*100:5.1f}%  frame {f:4d}/{TOTAL_FRAMES}"
+                  f"  Szene {si+1}/{len(SCENE_FNS)}", flush=True)
 
     writer.close()
-    size_mb = os.path.getsize(OUT_PATH) / 1024 / 1024
-    print(f"\nFertig! → {OUT_PATH}  ({size_mb:.1f} MB)")
+    size_mb = os.path.getsize(OUT_PATH)/1024/1024
+    print(f"\nFertig! → {OUT_PATH}  ({size_mb:.1f} MB, {duration:.1f}s)")
 
 if __name__ == "__main__":
     main()
