@@ -1,13 +1,13 @@
 """
-Handwerk Ad Video Renderer v2 — Creative Director Cut
-~56 seconds @ 30fps = 1680 frames @ 1280x720
+Handwerk Ad Video Renderer v3 — 2-Minuten Cut
+~120 seconds @ 30fps = 3590 frames @ 1280x720
 
 Narrative arc:
-  ACT 1 — Problem       (S0–S2):  Fragmentierte Tools, Chaos, Überwältigung
-  ACT 2 — Shift         (S3–S4):  Neue Plattform entsteht, Tools lösen sich auf
-  ACT 3 — Platform Live (S5–S8):  Dashboard UI, Kanban, Zeiterfassung, Ticketsystem
-  ACT 4 — Social Proof  (S9–S11): Module deep-dives, ISOTEC/VITERMA split
-  ACT 5 — Vision        (S12–S13): Full picture, Finale tagline
+  ACT 1 — Problem       (S0–S4):   Fragmentierte Tools, Chaos, Freeze, Node emerges, Dissolve
+  ACT 2 — Platform Live (S5–S12):  Dashboard, Kanban, Zeiterfassung, Ticketsystem,
+                                    Dokumente, Kalkulation, Buchhaltung, Mobile
+  ACT 3 — Social Proof  (S13–S16): Warenwirtschaft, Projektverwaltung, ISOTEC/VITERMA, Zitat
+  ACT 4 — Vision        (S17–S19): Full overview, Finale tagline, Outro
 """
 
 import numpy as np
@@ -24,22 +24,28 @@ os.makedirs(os.path.join(os.path.dirname(__file__), "out"), exist_ok=True)
 
 # Scene lengths in frames
 SCENE_LENGTHS = [
-    100,  # S0  — Icons isolated
-    100,  # S1  — Chaos lines
-    100,  # S2  — Freeze / overwhelm
-    110,  # S3  — Node emerges
-    100,  # S4  — Integration dissolve
-    140,  # S5  — Dashboard UI  (NEW)
-    150,  # S6  — Kanban Pipeline  (NEW)
-    130,  # S7  — Zeiterfassung Live  (NEW)
-    120,  # S8  — Ticketsystem / E-Mail  (NEW)
-    100,  # S9  — Warenwirtschaft deep-dive
-    100,  # S10 — Projektverwaltung deep-dive
-    130,  # S11 — Social Proof ISOTEC/VITERMA  (NEW)
-    110,  # S12 — Full abstract overview
-    160,  # S13 — Finale tagline
+    150,  # S0  — Icons isolated            (extended)
+    180,  # S1  — Chaos lines               (extended)
+    160,  # S2  — Freeze / overwhelm        (extended)
+    200,  # S3  — Node emerges              (extended)
+    200,  # S4  — Integration dissolve      (extended)
+    210,  # S5  — Dashboard UI              (extended)
+    210,  # S6  — Kanban Pipeline           (extended)
+    180,  # S7  — Zeiterfassung Live        (extended)
+    160,  # S8  — Ticketsystem / E-Mail     (extended)
+    180,  # S9  — Dokumente & Archiv        (NEW)
+    170,  # S10 — Kalkulation / BLS-Import  (NEW)
+    160,  # S11 — Buchhaltung / BMD-Sync    (NEW)
+    180,  # S12 — Mobile / Baustelle        (NEW)
+    150,  # S13 — Warenwirtschaft deep-dive (extended)
+    150,  # S14 — Projektverwaltung         (extended)
+    200,  # S15 — Social Proof ISOTEC/VITERMA (extended)
+    200,  # S16 — Kundenzitat               (NEW)
+    200,  # S17 — Full abstract overview    (extended)
+    230,  # S18 — Finale tagline            (extended)
+    120,  # S19 — Logo Outro               (NEW)
 ]
-TOTAL_FRAMES = sum(SCENE_LENGTHS)   # 1680
+TOTAL_FRAMES = sum(SCENE_LENGTHS)   # 3590
 
 # Precompute scene start offsets
 SCENE_STARTS = []
@@ -341,7 +347,7 @@ def scene00(f, img):
         draw_icon(img, name, cx, cy+float_y, opacity=op)
     d = ImageDraw.Draw(img)
     text_c(d, "Viele Betriebe. Viele Tools. Kein Überblick.",
-           H-55, opacity=lerp_e(f,18,38), size=14)
+           H-55, opacity=lerp_e(f,25,50), size=14)
 
 # ─── Scene 1: Chaos ───────────────────────────────────────────────────────────
 def scene01(f, img):
@@ -355,7 +361,7 @@ def scene01(f, img):
                   color=LINE_COLORS[i], width=1, opacity=0.60)
     d = ImageDraw.Draw(img)
     text_c(d, "Jedes Tool erfüllt seine Aufgabe — aber zusammenarbeiten tun sie selten.",
-           H-55, opacity=lerp_e(f,60,80), size=13)
+           H-55, opacity=lerp_e(f,90,115), size=13)
 
 # ─── Scene 2: Freeze ──────────────────────────────────────────────────────────
 def scene02(f, img):
@@ -373,7 +379,7 @@ def scene02(f, img):
     img.paste(sub_s, ((W-nw)//2, (H-nh)//2))
     d = ImageDraw.Draw(img)
     text_c(d, "Daten wandern. Informationen gehen verloren. Stunden verschwinden.",
-           H-55, opacity=lerp_e(f,5,25), size=13)
+           H-55, opacity=lerp_e(f,10,35), size=13)
 
 # ─── Scene 3: Node emerges ────────────────────────────────────────────────────
 def scene03(f, img):
@@ -399,7 +405,7 @@ def scene03(f, img):
                    pulse=lerp_e(f,38,68))
     d = ImageDraw.Draw(img)
     text_c(d, "Was wäre, wenn alles in einer Plattform zusammenkommt?",
-           H-55, opacity=lerp_e(f,58,78), size=14)
+           H-55, opacity=lerp_e(f,90,115), size=14)
 
 # ─── Scene 4: Integration dissolve ───────────────────────────────────────────
 def scene04(f, img):
@@ -429,7 +435,7 @@ def scene04(f, img):
     draw_icon(img, "Craftnote", cx, cy, opacity=icon_op)
     d = ImageDraw.Draw(img)
     text_c(d, "Ein System, das alle Tools integriert — oder sogar ersetzt.",
-           H-55, opacity=lerp_e(f,52,70), size=13)
+           H-55, opacity=lerp_e(f,100,125), size=13)
 
 # ─── Scene 5: Dashboard UI (NEW) ─────────────────────────────────────────────
 def scene05_dashboard(f, img):
@@ -560,7 +566,7 @@ def scene05_dashboard(f, img):
 
     d = ImageDraw.Draw(img)
     text_c(d, "Dein Betrieb auf einen Blick — immer aktuell.",
-           H-55, opacity=lerp_e(f, 90, 115), size=14, color=WHITE)
+           H-55, opacity=lerp_e(f, 130, 160), size=14, color=WHITE)
 
 # ─── Scene 6: Kanban Pipeline (NEW) ──────────────────────────────────────────
 KANBAN_COLS = [
@@ -671,7 +677,7 @@ def scene06_kanban(f, img):
 
     d = ImageDraw.Draw(img)
     text_c(d, "Von der Anfrage bis zur Fertigstellung — kein Auftrag geht verloren.",
-           H-55, opacity=lerp_e(f, 105, 135), size=13, color=WHITE)
+           H-55, opacity=lerp_e(f, 145, 175), size=13, color=WHITE)
 
 # ─── Scene 7: Zeiterfassung Live (NEW) ───────────────────────────────────────
 def scene07_zeit(f, img):
@@ -763,7 +769,7 @@ def scene07_zeit(f, img):
 
     d = ImageDraw.Draw(img)
     text_c(d, "Arbeitszeiten, Produktivität und Urlaub — alles in einer Ansicht.",
-           H-55, opacity=lerp_e(f, 92, 118), size=13, color=WHITE)
+           H-55, opacity=lerp_e(f, 130, 158), size=13, color=WHITE)
 
 # ─── Scene 8: Ticketsystem (NEW) ─────────────────────────────────────────────
 def scene08_tickets(f, img):
@@ -881,9 +887,417 @@ def scene08_tickets(f, img):
 
     d = ImageDraw.Draw(img)
     text_c(d, "Jede E-Mail wird automatisch zum Ticket. Keine Anfrage geht verloren.",
-           H-55, opacity=lerp_e(f, 80, 108), size=13, color=WHITE)
+           H-55, opacity=lerp_e(f, 110, 140), size=13, color=WHITE)
 
-# ─── Scene 9: Warenwirtschaft ─────────────────────────────────────────────────
+# ─── Scene 9: Dokumente & Archiv (NEW) ───────────────────────────────────────
+def scene09_dokumente(f, img):
+    """Document management module — folder structure, search, file open."""
+    title_op  = lerp_e(f, 0, 22)
+    panel_op  = lerp_e(f, 15, 42)
+    tree_op   = lerp_e(f, 35, 68)
+    search_op = lerp_e(f, 75, 105)
+    file_op   = lerp_e(f, 110, 140)
+
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Dokumente & Archiv", font=font(22, bold=True),
+               anchor="mm", fill=(*WHITE, int(235 * title_op)))
+        d.text((W//2, 72), "Alle Unterlagen. Immer griffbereit.",
+               font=font(11), anchor="mm", fill=(*GRAY, int(165 * title_op)))
+
+    # Left: folder tree panel
+    lx0, ly0 = 100, 100
+    draw_ui_panel(img, lx0, ly0, 300, 420, "Ordnerstruktur",
+                  opacity=panel_op, accent=AMBER)
+
+    if tree_op > 0:
+        folders = [
+            ("📁 Baupläne",      0, AMBER),
+            ("  📄 Müller.pdf",  1, LGRAY),
+            ("  📄 Schmidt.pdf", 1, LGRAY),
+            ("📁 Verträge",      0, AMBER),
+            ("  📄 Rahmenvertrag.pdf", 1, LGRAY),
+            ("📁 Fotos",         0, AMBER),
+            ("📁 Angebote",      0, AMBER),
+            ("  📄 AN-091-26.pdf", 1, LGRAY),
+        ]
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        for i, (name, indent, col) in enumerate(folders):
+            fy = ly0 + 48 + i * 42
+            op_f = lerp_e(f, 38 + i * 5, 58 + i * 5) * tree_op
+            if op_f <= 0:
+                continue
+            is_folder = name.startswith("📁")
+            if is_folder:
+                dd.rounded_rectangle([lx0 + 8, fy - 12, lx0 + 292, fy + 12],
+                                     radius=4, fill=(*AMBER, int(12 * op_f)))
+            dd.text((lx0 + 16 + indent * 18, fy), name, font=font(10),
+                    anchor="lm", fill=(*col, int(200 * op_f)))
+        composite(img, layer)
+
+    # Right: file detail / search panel
+    rx0, ry0 = 430, 100
+    draw_ui_panel(img, rx0, ry0, 750, 80, "Suche",
+                  opacity=search_op, accent=CYAN)
+
+    if search_op > 0:
+        layer2 = new_layer()
+        dd2 = ImageDraw.Draw(layer2)
+        # Search bar
+        dd2.rounded_rectangle([rx0 + 12, ry0 + 36, rx0 + 738, ry0 + 64],
+                               radius=6, fill=(30, 35, 60, int(200 * search_op)),
+                               outline=(*CYAN, int(80 * search_op)), width=1)
+        # Animated cursor typing "Müller"
+        query = "Müller"
+        shown = query[:max(0, int(lerp_e(f, 82, 118) * len(query)))]
+        cursor = "|" if (f // 15) % 2 == 0 else ""
+        dd2.text((rx0 + 22, ry0 + 50), f"🔍  {shown}{cursor}",
+                 font=font(11), anchor="lm",
+                 fill=(*WHITE, int(220 * search_op)))
+        composite(img, layer2)
+
+    # Results
+    if file_op > 0:
+        draw_ui_panel(img, rx0, ry0 + 100, 750, 310, "Suchergebnisse — 3 Treffer",
+                      opacity=file_op, accent=AMBER)
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        results = [
+            ("Müller.pdf",          "Baupläne",  "2.4 MB", "15.02.2026"),
+            ("Müller_Angebot.pdf",  "Angebote",  "0.8 MB", "03.01.2026"),
+            ("Müller_Fotos.zip",    "Fotos",     "48 MB",  "10.03.2026"),
+        ]
+        headers = ["Dateiname", "Ordner", "Größe", "Datum"]
+        header_xs = [rx0 + 12, rx0 + 320, rx0 + 530, rx0 + 640]
+        for xi, hd in zip(header_xs, headers):
+            dd3.text((xi, ry0 + 146), hd, font=font(9, bold=True),
+                     anchor="lm", fill=(*AMBER, int(150 * file_op)))
+        for i, (fname, folder, size, date) in enumerate(results):
+            ry = ry0 + 168 + i * 64
+            op_r = lerp_e(f, 118 + i * 8, 140 + i * 8) * file_op
+            if op_r <= 0:
+                continue
+            dd3.rounded_rectangle([rx0 + 6, ry - 16, rx0 + 744, ry + 26],
+                                   radius=4, fill=(255, 255, 255, int(7 * op_r)))
+            dd3.text((rx0 + 12, ry), fname, font=font(10, bold=True),
+                     anchor="lm", fill=(*LGRAY, int(210 * op_r)))
+            dd3.text((rx0 + 320, ry), folder, font=font(10),
+                     anchor="lm", fill=(*AMBER, int(180 * op_r)))
+            dd3.text((rx0 + 530, ry), size, font=font(9),
+                     anchor="lm", fill=(*GRAY, int(170 * op_r)))
+            dd3.text((rx0 + 640, ry), date, font=font(9),
+                     anchor="lm", fill=(*GRAY, int(170 * op_r)))
+        composite(img, layer3)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Alle Unterlagen. Immer griffbereit — vom Büro oder der Baustelle.",
+           H - 55, opacity=lerp_e(f, 138, 165), size=13, color=WHITE)
+
+
+# ─── Scene 10: Kalkulation / BLS-Import (NEW) ────────────────────────────────
+def scene10_kalkulation(f, img):
+    """BLS icon glows, data streams into calculation panel, positions build up."""
+    title_op  = lerp_e(f, 0, 22)
+    icon_op   = lerp_e(f, 10, 35)
+    stream_p  = lerp_e(f, 28, 65)
+    table_op  = lerp_e(f, 60, 90)
+    total_op  = lerp_e(f, 110, 140)
+
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Kalkulation", font=font(22, bold=True),
+               anchor="mm", fill=(*WHITE, int(235 * title_op)))
+        d.text((W//2, 72), "Direkt aus dem BLS — ohne doppelte Dateneingabe.",
+               font=font(11), anchor="mm", fill=(*GRAY, int(165 * title_op)))
+
+    bls_cx, bls_cy = 220, 360
+    panel_x, panel_y = 430, 120
+
+    # BLS icon
+    if icon_op > 0:
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        for gr, ga in [(62, 16), (44, 26), (26, 44)]:
+            dd.ellipse([bls_cx - gr, bls_cy - gr, bls_cx + gr, bls_cy + gr],
+                       fill=(*ORANGE, int(ga * icon_op)))
+        dd.rounded_rectangle([bls_cx - 44, bls_cy - 32, bls_cx + 44, bls_cy + 32],
+                              radius=10, fill=(*ORANGE, int(28 * icon_op)),
+                              outline=(*ORANGE, int(120 * icon_op)), width=2)
+        dd.text((bls_cx, bls_cy - 6), "BLS", font=font(20, bold=True),
+                anchor="mm", fill=(*WHITE, int(230 * icon_op)))
+        dd.text((bls_cx, bls_cy + 50), "BLS Import", font=font(10),
+                anchor="mm", fill=(*GRAY, int(180 * icon_op)))
+        composite(img, layer)
+
+    # Stream line
+    draw_line(img, bls_cx + 48, bls_cy, panel_x, panel_y + 250,
+              progress=stream_p, color=ORANGE, width=2, opacity=0.85)
+
+    # Kalkulation panel
+    draw_ui_panel(img, panel_x, panel_y, 740, 440, "Kalkulation — Projekt Dachsanierung Müller",
+                  opacity=table_op, accent=ORANGE)
+
+    if table_op > 0:
+        layer2 = new_layer()
+        dd2 = ImageDraw.Draw(layer2)
+        headers = ["Pos.", "Bezeichnung", "Einh.", "Menge", "EP €", "GP €"]
+        hxs = [panel_x + 12, panel_x + 65, panel_x + 440, panel_x + 510,
+                panel_x + 580, panel_x + 665]
+        for xi, hd in zip(hxs, headers):
+            dd2.text((xi, panel_y + 46), hd, font=font(9, bold=True),
+                     anchor="lm", fill=(*ORANGE, int(150 * table_op)))
+
+        positions = [
+            ("1.", "Abdichtungsarbeiten Keller",  "m²",  "45",  "32,00",  "1.440,00"),
+            ("2.", "Bitumenbahn zweilagig",        "m²",  "45",  "18,50",    "832,50"),
+            ("3.", "Drainage verlegen",            "lfm", "28",  "24,00",    "672,00"),
+            ("4.", "Schutzschicht aufbringen",     "m²",  "45",   "8,00",    "360,00"),
+            ("5.", "Auffüllen & Verdichten",       "m³",  "12",  "62,00",    "744,00"),
+        ]
+        for i, (pos, bez, einh, mge, ep, gp) in enumerate(positions):
+            ry = panel_y + 68 + i * 52
+            op_r = lerp_e(f, 65 + i * 8, 88 + i * 8) * table_op
+            if op_r <= 0:
+                continue
+            dd2.rounded_rectangle([panel_x + 6, ry - 14, panel_x + 734, ry + 18],
+                                   radius=3, fill=(255, 255, 255, int(6 * op_r)))
+            for xi, val in zip(hxs, [pos, bez, einh, mge, ep, gp]):
+                bold = (val == gp)
+                col = AMBER if bold else LGRAY
+                dd2.text((xi, ry), val, font=font(10, bold=bold),
+                         anchor="lm", fill=(*col, int(205 * op_r)))
+        composite(img, layer2)
+
+    # Animated total counter
+    if total_op > 0:
+        target = 4048.5
+        current = lerp_e(f, 112, 148) * target
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        dd3.line([(panel_x + 6, panel_y + 342), (panel_x + 734, panel_y + 342)],
+                 fill=(*ORANGE, int(60 * total_op)), width=1)
+        dd3.text((panel_x + 12, panel_y + 368), "Gesamtnetto:",
+                 font=font(13), anchor="lm",
+                 fill=(*LGRAY, int(200 * total_op)))
+        dd3.text((panel_x + 728, panel_y + 368), f"{current:,.2f} €".replace(",", "X").replace(".", ",").replace("X", "."),
+                 font=font(16, bold=True), anchor="rm",
+                 fill=(*AMBER, int(235 * total_op)))
+        composite(img, layer3)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Kalkulationen direkt aus dem BLS — kein Export, kein Abtippen.",
+           H - 55, opacity=lerp_e(f, 130, 158), size=13, color=WHITE)
+
+
+# ─── Scene 11: Buchhaltung / BMD-Sync (NEW) ──────────────────────────────────
+def scene11_buchhaltung(f, img):
+    """BMD icon glows, invoice list builds up, sync arrow pulses."""
+    title_op = lerp_e(f, 0, 22)
+    icon_op  = lerp_e(f, 10, 35)
+    list_op  = lerp_e(f, 42, 72)
+    sync_op  = lerp_e(f, 90, 118)
+
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Buchhaltung & BMD-Sync", font=font(22, bold=True),
+               anchor="mm", fill=(*WHITE, int(235 * title_op)))
+        d.text((W//2, 72), "Rechnungen fließen automatisch — kein Export, kein Fehler.",
+               font=font(11), anchor="mm", fill=(*GRAY, int(165 * title_op)))
+
+    bmd_cx, bmd_cy = 220, 350
+    bmd_color = (229, 57, 53)
+
+    if icon_op > 0:
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        for gr, ga in [(62, 16), (44, 26), (26, 44)]:
+            dd.ellipse([bmd_cx - gr, bmd_cy - gr, bmd_cx + gr, bmd_cy + gr],
+                       fill=(*bmd_color, int(ga * icon_op)))
+        dd.rounded_rectangle([bmd_cx - 44, bmd_cy - 32, bmd_cx + 44, bmd_cy + 32],
+                              radius=10, fill=(*bmd_color, int(28 * icon_op)),
+                              outline=(*bmd_color, int(120 * icon_op)), width=2)
+        dd.text((bmd_cx, bmd_cy - 6), "BMD", font=font(20, bold=True),
+                anchor="mm", fill=(*WHITE, int(230 * icon_op)))
+        dd.text((bmd_cx, bmd_cy + 50), "Buchhaltung", font=font(10),
+                anchor="mm", fill=(*GRAY, int(180 * icon_op)))
+        composite(img, layer)
+
+    # Invoice panel
+    px, py = 430, 100
+    draw_ui_panel(img, px, py, 750, 380, "Rechnungen", opacity=list_op, accent=bmd_color)
+
+    if list_op > 0:
+        layer2 = new_layer()
+        dd2 = ImageDraw.Draw(layer2)
+        headers = ["Rechnungs-Nr.", "Kunde", "Betrag", "Status", "BMD"]
+        hxs = [px + 12, px + 180, px + 440, px + 570, px + 680]
+        for xi, hd in zip(hxs, headers):
+            dd2.text((xi, py + 46), hd, font=font(9, bold=True),
+                     anchor="lm", fill=(*bmd_color, int(150 * list_op)))
+        invoices = [
+            ("RG-2026-0042", "ISOTEC Franchise GmbH",  "3.840,00 €", "bezahlt",    "✓"),
+            ("RG-2026-0041", "Dachbau Müller",          "1.260,00 €", "offen",      "✓"),
+            ("RG-2026-0040", "Schmidt Haustechnik",     "  890,00 €", "bezahlt",    "✓"),
+            ("RG-2026-0039", "Fenster Bauer GmbH",      "2.100,00 €", "überfällig", "✓"),
+        ]
+        for i, (nr, kunde, betrag, status, bmd) in enumerate(invoices):
+            ry = py + 68 + i * 68
+            op_r = lerp_e(f, 48 + i * 8, 70 + i * 8) * list_op
+            if op_r <= 0:
+                continue
+            dd2.rounded_rectangle([px + 6, ry - 14, px + 744, ry + 22],
+                                   radius=3, fill=(255, 255, 255, int(6 * op_r)))
+            dd2.text((px + 12, ry), nr, font=font(10, bold=True),
+                     anchor="lm", fill=(*CYAN, int(210 * op_r)))
+            dd2.text((px + 180, ry), kunde, font=font(10),
+                     anchor="lm", fill=(*LGRAY, int(200 * op_r)))
+            dd2.text((px + 440, ry), betrag, font=font(10, bold=True),
+                     anchor="lm", fill=(*WHITE, int(215 * op_r)))
+            sc = GREEN if status == "bezahlt" else (RED if status == "überfällig" else AMBER)
+            dd2.text((px + 570, ry), status, font=font(9),
+                     anchor="lm", fill=(*sc, int(210 * op_r)))
+            dd2.text((px + 680, ry), bmd, font=font(12, bold=True),
+                     anchor="lm", fill=(*GREEN, int(225 * op_r)))
+        composite(img, layer2)
+
+    # Sync arrow + badge
+    if sync_op > 0:
+        pulse = 0.5 + 0.5 * math.sin(f * 0.25)
+        arr_op = sync_op * (0.7 + 0.3 * pulse)
+        draw_line(img, bmd_cx + 48, bmd_cy - 20, px, py + 190,
+                  progress=1.0, color=bmd_color, width=2, opacity=arr_op * 0.8)
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        bw = 200
+        bx0 = bmd_cx - bw // 2
+        by0 = bmd_cy + 80
+        dd3.rounded_rectangle([bx0, by0, bx0 + bw, by0 + 32], radius=6,
+                               fill=(*GREEN, int(30 * sync_op)),
+                               outline=(*GREEN, int(100 * sync_op)), width=1)
+        dd3.text((bmd_cx, by0 + 16), "✓  Synchronisiert",
+                 font=font(11, bold=True), anchor="mm",
+                 fill=(*GREEN, int(225 * sync_op)))
+        composite(img, layer3)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Rechnungen fließen automatisch in die Buchhaltung.",
+           H - 55, opacity=lerp_e(f, 120, 148), size=13, color=WHITE)
+
+
+# ─── Scene 12: Mobile / Baustelle (NEW) ──────────────────────────────────────
+def scene12_mobile(f, img):
+    """Desktop dashboard left, smartphone mockup right, sync arrow between."""
+    title_op  = lerp_e(f, 0, 22)
+    desk_op   = lerp_e(f, 15, 48)
+    phone_op  = lerp_e(f, 50, 80)
+    sync_op   = lerp_e(f, 78, 108)
+    loc_op    = lerp_e(f, 110, 138)
+
+    if title_op > 0:
+        d = ImageDraw.Draw(img)
+        d.text((W//2, 45), "Im Büro. Auf der Baustelle.", font=font(22, bold=True),
+               anchor="mm", fill=(*WHITE, int(235 * title_op)))
+        d.text((W//2, 72), "Immer dieselbe Plattform — überall verfügbar.",
+               font=font(11), anchor="mm", fill=(*GRAY, int(165 * title_op)))
+
+    # Desktop panel (left side)
+    dx, dy = 60, 110
+    draw_ui_panel(img, dx, dy, 490, 460, "Dashboard — Desktop",
+                  opacity=desk_op, accent=CYAN)
+    if desk_op > 0:
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        desk_items = [
+            ("Meine Projekte",    "5 aktiv",   CYAN),
+            ("Offene Tickets",    "3 offen",   AMBER),
+            ("Zeiterfassung",     "2 live",    GREEN),
+            ("Letzte Aktivität",  "vor 2 Min", LGRAY),
+            ("Heuteplan",         "3 Baustellen", BLUE),
+        ]
+        for i, (label, val, col) in enumerate(desk_items):
+            ry = dy + 52 + i * 72
+            op_i = lerp_e(f, 22 + i * 6, 45 + i * 6) * desk_op
+            if op_i <= 0:
+                continue
+            dd.rounded_rectangle([dx + 10, ry - 16, dx + 480, ry + 28],
+                                  radius=5, fill=(*col, int(12 * op_i)))
+            dd.text((dx + 20, ry), label, font=font(11),
+                    anchor="lm", fill=(*LGRAY, int(200 * op_i)))
+            dd.text((dx + 470, ry), val, font=font(11, bold=True),
+                    anchor="rm", fill=(*col, int(225 * op_i)))
+        composite(img, layer)
+
+    # Smartphone silhouette (right side)
+    ph_cx, ph_cy = 950, 360
+    ph_w, ph_h = 200, 360
+    ph_x0, ph_y0 = ph_cx - ph_w // 2, ph_cy - ph_h // 2
+
+    if phone_op > 0:
+        layer2 = new_layer()
+        dd2 = ImageDraw.Draw(layer2)
+        # Phone body
+        dd2.rounded_rectangle([ph_x0, ph_y0, ph_x0 + ph_w, ph_y0 + ph_h],
+                               radius=24, fill=(15, 18, 40, int(220 * phone_op)),
+                               outline=(*CYAN, int(90 * phone_op)), width=2)
+        # Notch
+        dd2.rounded_rectangle([ph_cx - 30, ph_y0 + 6, ph_cx + 30, ph_y0 + 18],
+                               radius=6, fill=(5, 6, 20, int(200 * phone_op)))
+        # Home bar
+        dd2.rounded_rectangle([ph_cx - 30, ph_y0 + ph_h - 12, ph_cx + 30, ph_y0 + ph_h - 6],
+                               radius=4, fill=(*GRAY, int(100 * phone_op)))
+        # Mini UI inside phone
+        phone_items = [
+            ("Projekte", "5", CYAN),
+            ("Tickets",  "3", AMBER),
+            ("Zeit",     "●", GREEN),
+            ("Dokumente","↑", BLUE),
+        ]
+        for i, (lbl, val, col) in enumerate(phone_items):
+            iy = ph_y0 + 42 + i * 62
+            op_p = lerp_e(f, 56 + i * 5, 78 + i * 5) * phone_op
+            if op_p <= 0:
+                continue
+            dd2.rounded_rectangle([ph_x0 + 8, iy, ph_x0 + ph_w - 8, iy + 48],
+                                   radius=6, fill=(*col, int(18 * op_p)))
+            dd2.text((ph_cx, iy + 16), val, font=font(14, bold=True),
+                     anchor="mm", fill=(*col, int(230 * op_p)))
+            dd2.text((ph_cx, iy + 34), lbl, font=font(9),
+                     anchor="mm", fill=(*GRAY, int(185 * op_p)))
+        composite(img, layer2)
+
+    # Bidirectional sync arrows
+    if sync_op > 0:
+        pulse = 0.5 + 0.5 * math.sin(f * 0.22)
+        arr_op = sync_op * (0.6 + 0.4 * pulse)
+        mx = (dx + 490 + ph_x0) // 2
+        draw_line(img, dx + 490, dy + 230, ph_x0, ph_cy,
+                  progress=lerp_e(f, 80, 110), color=CYAN, width=2, opacity=arr_op)
+        draw_line(img, ph_x0, ph_cy + 40, dx + 490, dy + 260,
+                  progress=lerp_e(f, 88, 118), color=CYAN, width=2, opacity=arr_op * 0.7)
+        if sync_op > 0.5:
+            d = ImageDraw.Draw(img)
+            d.text((mx + 20, dy + 240), "SYNC", font=font(9, bold=True),
+                   anchor="mm", fill=(*CYAN, int(180 * sync_op)))
+
+    # Location pin
+    if loc_op > 0:
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        pin_x, pin_y = ph_cx, ph_y0 + ph_h + 30
+        dd3.ellipse([pin_x - 6, pin_y - 6, pin_x + 6, pin_y + 6],
+                    fill=(*GREEN, int(220 * loc_op)))
+        dd3.text((pin_x + 12, pin_y), "Baustelle Müller — GPS aktiv",
+                 font=font(10), anchor="lm",
+                 fill=(*GREEN, int(200 * loc_op)))
+        composite(img, layer3)
+
+    d = ImageDraw.Draw(img)
+    text_c(d, "Im Büro. Auf der Baustelle. Immer dieselbe Plattform.",
+           H - 55, opacity=lerp_e(f, 140, 168), size=13, color=WHITE)
+
+
+# ─── Scene 13: Warenwirtschaft ────────────────────────────────────────────────
 def scene09_ware(f, img):
     draw_glow_node(img, CENTER_PX[0], CENTER_PX[1], scale=0.65, opacity=0.55)
     od_pos  = icon_px("OneDrive")
@@ -955,7 +1369,7 @@ def scene11_social(f, img):
     left_op   = lerp_e(f, 14, 42)
     right_op  = lerp_e(f, 28, 58)
     badge_op  = lerp_e(f, 55, 85)
-    sub_op    = lerp_e(f, 95, 118)
+    sub_op    = lerp_e(f, 140, 168)
 
     # Divider line center
     if title_op > 0:
@@ -1040,7 +1454,87 @@ def scene11_social(f, img):
     text_c(d, "Jede Plattform wird individuell konfiguriert — genau für deinen Betrieb.",
            H-55, opacity=sub_op, size=13, color=WHITE)
 
-# ─── Scene 12: Full overview ──────────────────────────────────────────────────
+# ─── Scene 16: Kundenzitat (NEW) ─────────────────────────────────────────────
+def scene16_quote(f, img):
+    """Customer quote — animated line-by-line reveal."""
+    bg_op    = lerp_e(f, 0, 25)
+    mark_op  = lerp_e(f, 8, 30)
+    line1_op = lerp_e(f, 22, 48)
+    line2_op = lerp_e(f, 50, 75)
+    name_op  = lerp_e(f, 90, 115)
+    bar_op   = lerp_e(f, 5, 28)
+
+    # Ambient glow
+    if bg_op > 0:
+        layer = new_layer()
+        dd = ImageDraw.Draw(layer)
+        for r, a in [(320, 12), (200, 20), (100, 30)]:
+            dd.ellipse([CENTER_PX[0] - r, CENTER_PX[1] - r,
+                        CENTER_PX[0] + r, CENTER_PX[1] + r],
+                       fill=(*BLUE, int(a * bg_op)))
+        composite(img, layer)
+
+    # Accent bar
+    if bar_op > 0:
+        lw = int(lerp_e(f, 5, 28) * 280)
+        d = ImageDraw.Draw(img)
+        d.line([(CENTER_PX[0] - lw, CENTER_PX[1] - 120),
+                (CENTER_PX[0] + lw, CENTER_PX[1] - 120)],
+               fill=(*CYAN, int(90 * bar_op)), width=1)
+
+    # Quotation marks
+    if mark_op > 0:
+        layer2 = new_layer()
+        dd2 = ImageDraw.Draw(layer2)
+        dd2.text((CENTER_PX[0] - 260, CENTER_PX[1] - 105),
+                 "\u201e", font=font(72, bold=True),
+                 anchor="lm", fill=(*CYAN, int(80 * mark_op)))
+        composite(img, layer2)
+
+    # Quote lines
+    d = ImageDraw.Draw(img)
+    if line1_op > 0:
+        d.text((CENTER_PX[0], CENTER_PX[1] - 50),
+               "Endlich sehen wir alles auf einen Blick.",
+               font=font(26), anchor="mm",
+               fill=(*WHITE, int(240 * line1_op)))
+    if line2_op > 0:
+        d.text((CENTER_PX[0], CENTER_PX[1] + 10),
+               "Unsere Projektleiter sparen täglich zwei Stunden.",
+               font=font(26), anchor="mm",
+               fill=(*WHITE, int(240 * line2_op)))
+
+    # Name + company
+    if name_op > 0:
+        layer3 = new_layer()
+        dd3 = ImageDraw.Draw(layer3)
+        # Avatar circle
+        av_x, av_y = CENTER_PX[0] - 180, CENTER_PX[1] + 88
+        dd3.ellipse([av_x - 22, av_y - 22, av_x + 22, av_y + 22],
+                    fill=(*CYAN, int(40 * name_op)),
+                    outline=(*CYAN, int(100 * name_op)), width=1)
+        dd3.text((av_x, av_y), "MR", font=font(14, bold=True),
+                 anchor="mm", fill=(*CYAN, int(220 * name_op)))
+        dd3.text((av_x + 36, av_y - 8), "Michael R.",
+                 font=font(13, bold=True), anchor="lm",
+                 fill=(*WHITE, int(220 * name_op)))
+        dd3.text((av_x + 36, av_y + 10), "Geschäftsführer — ISOTEC Franchise",
+                 font=font(10), anchor="lm",
+                 fill=(*GRAY, int(180 * name_op)))
+        composite(img, layer3)
+
+    # Stars
+    if name_op > 0.3:
+        layer4 = new_layer()
+        dd4 = ImageDraw.Draw(layer4)
+        for si in range(5):
+            dd4.text((CENTER_PX[0] + 40 + si * 26, CENTER_PX[1] + 88),
+                     "★", font=font(16),
+                     anchor="mm", fill=(*AMBER, int(220 * name_op)))
+        composite(img, layer4)
+
+
+# ─── Scene 17: Full overview ──────────────────────────────────────────────────
 DASH_MODULES = [
     {"pos":(0.20,0.28),"title":"Projekte",     "items":["Kanban","Aufgaben"],          "color":CYAN,           "w":165},
     {"pos":(0.38,0.28),"title":"Material",     "items":["Bestände","Bestellungen"],    "color":(0,220,200),    "w":165},
@@ -1071,7 +1565,7 @@ def scene12_overview(f, img):
     text_c(d, "Aus vielen Programmen wird eine Plattform.",
            H-55, opacity=lerp_e(f,62,82), size=14)
 
-# ─── Scene 13: Finale ─────────────────────────────────────────────────────────
+# ─── Scene 18: Finale ─────────────────────────────────────────────────────────
 def scene13_finale(f, img):
     # Ambient glow
     glow_a = int((0.28 + math.sin(f*0.12)*0.09) * 200)
@@ -1131,28 +1625,66 @@ def scene13_finale(f, img):
         composite(img, layer2)
 
     # Fade to black
-    fade = lerp_e(f, 132, 155)
+    fade = lerp_e(f, 190, 218)
     if fade > 0:
         overlay = Image.new("RGB",(W,H),(0,0,0))
         mask    = Image.fromarray(np.full((H,W),int(fade*255),dtype=np.uint8))
         img.paste(overlay, mask=mask)
 
+# ─── Scene 19: Logo Outro (NEW) ──────────────────────────────────────────────
+def scene19_outro(f, img):
+    """Final branded outro — glow node + logo text + fade to black."""
+    glow_op  = lerp_e(f, 0, 30)
+    logo_op  = lerp_e(f, 25, 55)
+    claim_op = lerp_e(f, 48, 75)
+    fade_out = lerp_e(f, 85, 112)
+
+    if glow_op > 0:
+        pulse = 0.5 + 0.5 * math.sin(f * 0.18)
+        draw_glow_node(img, CENTER_PX[0], CENTER_PX[1],
+                       scale=1.2 + 0.1 * pulse, opacity=glow_op * 0.85,
+                       pulse=pulse)
+
+    d = ImageDraw.Draw(img)
+    if logo_op > 0:
+        d.text((CENTER_PX[0], CENTER_PX[1] - 30),
+               "Projektplattform",
+               font=font(48, bold=True), anchor="mm",
+               fill=(*CYAN, int(245 * logo_op)))
+    if claim_op > 0:
+        d.text((CENTER_PX[0], CENTER_PX[1] + 32),
+               "Das Betriebssystem für dein Handwerk.",
+               font=font(16), anchor="mm",
+               fill=(*LGRAY, int(210 * claim_op)))
+
+    if fade_out > 0:
+        overlay = Image.new("RGB", (W, H), (0, 0, 0))
+        mask = Image.fromarray(np.full((H, W), int(fade_out * 255), dtype=np.uint8))
+        img.paste(overlay, mask=mask)
+
+
 # ─── Scene dispatch ───────────────────────────────────────────────────────────
 SCENE_FNS = [
-    scene00,              # 0
-    scene01,              # 1
-    scene02,              # 2
-    scene03,              # 3
-    scene04,              # 4
-    scene05_dashboard,    # 5  NEW
-    scene06_kanban,       # 6  NEW
-    scene07_zeit,         # 7  NEW
-    scene08_tickets,      # 8  NEW
-    scene09_ware,         # 9
-    scene10_proj,         # 10
-    scene11_social,       # 11 NEW
-    scene12_overview,     # 12
-    scene13_finale,       # 13
+    scene00,              # 0  — Icons isoliert
+    scene01,              # 1  — Chaos-Linien
+    scene02,              # 2  — Freeze
+    scene03,              # 3  — Node entsteht
+    scene04,              # 4  — Integration dissolve
+    scene05_dashboard,    # 5  — Dashboard UI
+    scene06_kanban,       # 6  — Kanban Pipeline
+    scene07_zeit,         # 7  — Zeiterfassung
+    scene08_tickets,      # 8  — Ticketsystem
+    scene09_dokumente,    # 9  — Dokumente & Archiv     (NEU)
+    scene10_kalkulation,  # 10 — Kalkulation / BLS      (NEU)
+    scene11_buchhaltung,  # 11 — Buchhaltung / BMD      (NEU)
+    scene12_mobile,       # 12 — Mobile / Baustelle     (NEU)
+    scene09_ware,         # 13 — Warenwirtschaft
+    scene10_proj,         # 14 — Projektverwaltung
+    scene11_social,       # 15 — Social Proof ISOTEC/VITERMA
+    scene16_quote,        # 16 — Kundenzitat            (NEU)
+    scene12_overview,     # 17 — Komplettübersicht
+    scene13_finale,       # 18 — Finale Tagline
+    scene19_outro,        # 19 — Logo Outro             (NEU)
 ]
 
 def render_frame(global_frame: int) -> np.ndarray:
