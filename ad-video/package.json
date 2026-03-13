@@ -1,0 +1,22 @@
+{
+  "name": "ad-video",
+  "version": "1.0.0",
+  "description": "30-second Handwerk software platform ad video",
+  "scripts": {
+    "start": "npx remotion studio",
+    "build": "npx remotion render AdVideo out/ad-video.mp4",
+    "render:hq": "npx remotion render AdVideo out/ad-video-hq.mp4 --codec h264 --crf 18",
+    "still": "npx remotion still AdVideo out/still.png --frame 0"
+  },
+  "dependencies": {
+    "remotion": "4.0.434",
+    "@remotion/cli": "4.0.434",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.4.0"
+  }
+}
