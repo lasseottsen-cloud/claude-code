@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="de" data-brand="isotec">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/design-system.css?v=20260311">
+    <link rel="stylesheet" href="/mobile-ux-core.css?v=20260308">
+<title>ISOTEC Ottsen – Auswertung Arbeitszeit</title>
+<script src="/iso-zeit/js/chart.umd.min.js"></script>
+<script src="/iso-zeit/js/jspdf.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--ds-font);background:var(--ds-bg-page);color:var(--ds-text-strong);min-height:100vh;}
+
+:root{
+  --bg-page:var(--ds-bg-page);
+  --bg-elev:var(--ds-bg-card);
+  --bg-soft:var(--ds-bg-soft);
+  --bg-panel:var(--ds-bg-panel);
+  --text-strong:var(--ds-text-strong);
+  --text-muted:var(--ds-text-muted);
+  --line:var(--ds-line);
+  --line-strong:var(--ds-line-strong);
+  --brand:var(--ds-brand);
+  --brand-700:var(--ds-brand-dark);
+  --brand-ink:var(--ds-text-base);
+  --shadow-soft:var(--ds-shadow-md);
+  --shadow-strong:var(--ds-shadow-lg);
+}
+body{
+  font-family:var(--ds-font);
+  color:var(--text-strong);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(213,19,23,.08) 0, transparent 26%),
+    radial-gradient(circle at 100% 8%, rgba(199,111,26,.08) 0, transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(238,241,244,.92) 16%, #eef1f4 100%),
+    var(--bg-page);
+}
+
+/* Header */
+/* ─── HEADER (ISOTEC-Stil) ─── */
+.iso-hdr{display:flex;align-items:center;min-height:76px;padding:12px 24px;gap:14px;box-shadow:var(--ds-shadow-md);position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--ds-line)}
+.iso-hdr-logo{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.iso-hdr-logo img{height:42px;width:auto}
+.iso-hdr-divider{width:1px;height:40px;background:var(--ds-line);margin:0 2px;flex-shrink:0}
+.iso-hdr-title{font-size:18px;font-weight:700;color:var(--brand-ink);letter-spacing:-.02em}
+.iso-hdr-title span{display:block;font-size:11px;color:var(--ds-text-subtle);font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-top:2px}
+.iso-hdr-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+.header-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.sync-info{font-size:11px;opacity:.7;text-align:right;}
+.btn-sync,.btn-export,.btn-reset{border:1px solid var(--line);background:#fff;border-radius:var(--ds-radius-full);color:var(--brand-ink);padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;transition:.16s;box-shadow:0 1px 0 rgba(255,255,255,.45)}
+.btn-sync:hover,.btn-export:hover,.btn-reset:hover{background:var(--ds-brand-light);border-color:var(--ds-brand-light);color:var(--brand-700)}
+.btn-sync:disabled{opacity:.5;cursor:default;}
+
+/* Navigations-Bar */
+.nav-bar{background:transparent;padding:10px 20px 0;display:flex;align-items:center;gap:8px;overflow-x:auto;max-width:1200px;margin:0 auto}
+.nav-btn{padding:10px 16px;font-size:13px;font-weight:600;color:var(--ds-text-muted);background:#fff;border:1px solid var(--line);border-radius:var(--ds-radius-full);cursor:pointer;white-space:nowrap;transition:.15s}
+.nav-btn.active,.nav-btn:hover{color:var(--brand-700);border-color:var(--ds-brand-light);background:var(--ds-brand-light)}
+
+/* Filter-Bar */
+.filter-bar{max-width:1200px;margin:12px auto 0;background:linear-gradient(180deg,rgba(255,255,255,.98) 0%, rgba(250,247,244,.98) 100%);border:1px solid var(--line);border-radius:var(--ds-radius-lg);padding:14px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:var(--shadow-soft)}
+.nav-monat{display:flex;align-items:center;gap:4px;}
+.nav-monat button{width:40px;height:40px;border:1px solid var(--line);border-radius:var(--ds-radius-full);background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--brand-ink)}
+.nav-monat button:hover{background:var(--ds-brand-light);border-color:var(--ds-brand-light);color:var(--brand-700)}
+.monat-select,.ma-select{padding:0 14px;border:1px solid var(--line);border-radius:var(--ds-radius-md);font-size:13px;color:var(--text-strong);background:rgba(255,255,255,.95);cursor:pointer;min-width:180px;min-height:44px}
+.filter-bar-right{margin-left:auto;display:flex;gap:8px;}
+.btn-export{padding:7px 14px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;}
+.btn-export:hover{background:#e2e8f0;}
+.btn-reset{padding:7px 12px;background:none;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#94a3b8;cursor:pointer;}
+
+/* Container */
+.container{max-width:1200px;margin:0 auto;padding:16px 20px 28px;}
+
+/* KPI Grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.kpi-card{background:linear-gradient(180deg,#ffffff 0%, #fbfaf8 100%);border-radius:var(--ds-radius-lg);padding:18px;border:1px solid var(--line);box-shadow:var(--shadow-soft);}
+.kpi-label{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;}
+.kpi-value{font-size:26px;font-weight:800;margin-top:4px;line-height:1.1;}
+.kpi-sub{font-size:11px;color:#94a3b8;margin-top:2px;}
+.kpi-blue .kpi-value{color:#0369a1;}
+.kpi-green .kpi-value{color:#15803d;}
+.kpi-red .kpi-value{color:#b91c1c;}
+.kpi-amber .kpi-value{color:#b45309;}
+.kpi-card.kpi-soll-ist{border-left:3px solid #b91c1c;}
+
+/* Charts Grid */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px;}
+.chart-card,.abw-card,.jahr-ma-card,.card{background:linear-gradient(180deg,#ffffff 0%, #fbfaf8 100%);border-radius:var(--ds-radius-lg);padding:16px;border:1px solid var(--line);box-shadow:var(--shadow-soft);}
+.chart-title{font-size:14px;font-weight:700;color:#374151;margin-bottom:12px;}
+.chart-wrap{position:relative;}
+
+/* Wochenvergleich */
+.woche-list{display:flex;flex-direction:column;gap:10px;}
+.woche-item{}
+.woche-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;display:flex;justify-content:space-between;}
+.woche-bar-wrap{height:16px;background:#f1f5f9;border-radius:8px;overflow:hidden;display:flex;}
+.woche-bar-arbeit{background:#b91c1c;height:100%;transition:width .4s;border-radius:8px 0 0 8px;}
+.woche-bar-fahr{background:#fca5a5;height:100%;}
+.woche-legend{display:flex;gap:12px;margin-top:8px;font-size:11px;color:#64748b;}
+.woche-legend span{display:flex;align-items:center;gap:4px;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+/* Mitarbeiter Soll/Ist */
+.section-title{font-size:14px;font-weight:700;color:#374151;margin-bottom:10px;}
+.ma-list{display:flex;flex-direction:column;gap:8px;}
+.ma-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;cursor:pointer;}
+.ma-row:last-child{border-bottom:none;}
+.ma-row:hover{background:#f8fafc;margin:0 -8px;padding:8px;border-radius:8px;}
+.ma-avatar{width:34px;height:34px;border-radius:50%;background:#b91c1c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.ma-info{flex:1;min-width:0;}
+.ma-name{font-size:13px;font-weight:600;color:#1e293b;}
+.ma-detail{font-size:11px;color:#94a3b8;margin-top:1px;}
+.ma-hours{text-align:right;min-width:90px;}
+.ma-hours-val{font-size:16px;font-weight:800;color:#b91c1c;}
+.ma-hours-sub{font-size:10px;color:#94a3b8;}
+.ma-soll-bar{margin-top:4px;height:4px;background:#f1f5f9;border-radius:2px;overflow:hidden;}
+.ma-soll-bar-fill{height:100%;background:#b91c1c;border-radius:2px;transition:width .4s;}
+.ma-soll-bar-fill.over{background:#15803d;}
+.ma-soll-bar-fill.under{background:#f59e0b;}
+
+/* Fehlzeiten */
+.fehl-list{display:flex;flex-direction:column;gap:6px;}
+.fehl-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f1f5f9;}
+.fehl-row:last-child{border-bottom:none;}
+.fehl-name{font-size:13px;font-weight:600;color:#1e293b;min-width:140px;}
+.fehl-datum{font-size:12px;color:#64748b;min-width:80px;}
+.fehl-chip{display:inline-block;font-size:11px;padding:2px 8px;border-radius:var(--ds-radius-md);font-weight:600;}
+.fehl-missing{background:#fef2f2;color:#dc2626;}
+.fehl-urlaub{background:#eff6ff;color:#2563eb;}
+.fehl-krank{background:#fef2f2;color:#dc2626;}
+.fehl-sonder{background:#faf5ff;color:#7c3aed;}
+.fehl-fort{background:#f0fdf4;color:#15803d;}
+
+/* Projekt-Kosten Tabelle */
+.proj-table{width:100%;border-collapse:collapse;font-size:13px;}
+.proj-table,.abw-table{width:100%;border-collapse:collapse}
+.proj-table th,.abw-table th{text-align:left;padding:10px 12px;font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--ds-line);background:var(--ds-bg-soft)}
+.proj-table td,.abw-table td{padding:10px 12px;border-bottom:1px solid var(--ds-line);color:#374151;}
+.proj-table tr:last-child td{border-bottom:none;}
+.proj-table tr:hover td{background:#f8fafc;}
+.proj-table .ta-right{text-align:right;}
+.proj-total{font-weight:700;color:#1e293b;}
+
+/* Jahresübersicht */
+.jahr-ma-card{background:#fff;border-radius:var(--ds-radius-md);padding:16px;box-shadow:var(--ds-shadow-sm);margin-bottom:12px;}
+.jahr-ma-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.jahr-ma-name{font-size:14px;font-weight:700;color:#1e293b;}
+.jahr-ma-kpis{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:10px;}
+.jahr-kpi{text-align:center;}
+.jahr-kpi-val{font-size:20px;font-weight:800;color:#b91c1c;}
+.jahr-kpi-lbl{font-size:10px;color:#94a3b8;margin-top:1px;}
+.jahr-monat-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin-top:10px;}
+.jahr-monat-cell{background:#f8fafc;border-radius:6px;padding:6px 4px;text-align:center;}
+.jahr-monat-name{font-size:9px;color:#94a3b8;font-weight:600;}
+.jahr-monat-ist{font-size:12px;font-weight:700;color:#1e293b;margin-top:2px;}
+.jahr-monat-diff{font-size:9px;margin-top:1px;}
+.diff-pos{color:#15803d;}
+.diff-neg{color:#dc2626;}
+
+/* Abwesenheiten Tab */
+.abw-card{background:#fff;border-radius:var(--ds-radius-md);padding:16px;box-shadow:var(--ds-shadow-sm);}
+.abw-table{width:100%;border-collapse:collapse;font-size:13px;}
+.abw-table th{text-align:left;padding:8px 10px;font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;border-bottom:2px solid #f1f5f9;}
+.abw-table td{padding:8px 10px;border-bottom:1px solid #f8fafc;}
+.abw-table tr:hover td{background:#f8fafc;}
+.approved-yes{color:#15803d;font-weight:600;}
+.approved-no{color:#f59e0b;font-weight:600;}
+
+/* MA-Detail Modal */
+.ma-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;}
+.ma-modal{background:#fff;border-radius:14px;width:100%;max-width:900px;box-shadow:var(--ds-shadow-xl);overflow:hidden;}
+.ma-modal-header{background:linear-gradient(135deg,#b91c1c,#991b1b);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
+.ma-modal-title{font-size:16px;font-weight:700;}
+.ma-modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 12px;font-size:16px;cursor:pointer;line-height:1;}
+.ma-modal-body{padding:0;}
+.ma-modal-kpis{display:flex;gap:0;border-bottom:1px solid #f1f5f9;}
+.ma-modal-kpi{flex:1;padding:12px 16px;text-align:center;border-right:1px solid #f1f5f9;}
+.ma-modal-kpi:last-child{border-right:none;}
+.ma-modal-kpi-val{font-size:18px;font-weight:800;color:#b91c1c;}
+.ma-modal-kpi-lbl{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-top:2px;}
+.ma-modal-table{width:100%;border-collapse:collapse;font-size:13px;}
+.ma-modal-table th{text-align:left;padding:8px 12px;font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;background:#f8fafc;border-bottom:2px solid #f1f5f9;}
+.ma-modal-table td{padding:7px 12px;border-bottom:1px solid #f8fafc;color:#374151;vertical-align:middle;}
+.ma-modal-table tr:hover td{background:#fef9f9;}
+.ma-modal-table .td-bold{font-weight:700;color:#1e293b;}
+.proj-cell{cursor:pointer;display:flex;align-items:center;gap:6px;min-width:160px;}
+.proj-cell-name{flex:1;}
+.proj-cell-icon{font-size:11px;color:#94a3b8;flex-shrink:0;}
+.proj-cell.has-proj .proj-cell-name{color:#b91c1c;font-weight:600;}
+.proj-cell.has-proj .proj-cell-icon{color:#b91c1c;}
+.proj-dropdown{position:absolute;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:var(--ds-shadow-lg);z-index:2000;min-width:280px;max-width:420px;overflow:hidden;}
+.proj-dropdown-header{padding:10px 14px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;background:#f8fafc;border-bottom:1px solid #f1f5f9;}
+.proj-dropdown-item{padding:9px 14px;cursor:pointer;font-size:13px;color:#374151;border-bottom:1px solid #f8fafc;}
+.proj-dropdown-item:hover{background:#fef2f2;color:#b91c1c;}
+.proj-dropdown-item.selected{background:#fee2e2;color:#b91c1c;font-weight:600;}
+.proj-dropdown-item.clear-item{color:#94a3b8;font-style:italic;}
+.proj-dropdown-item.clear-item:hover{background:#f8fafc;color:#64748b;}
+.proj-dropdown-item .proj-nr{font-size:10px;color:#94a3b8;margin-top:1px;}
+.proj-saving{opacity:.5;pointer-events:none;}
+
+/* Loading / Error */
+.loading{text-align:center;padding:60px;color:#94a3b8;font-size:16px;}
+.error-box{background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;border-radius:10px;padding:16px;margin:16px;}
+
+/* Utility */
+.hidden{display:none!important;}
+.card{background:#fff;border-radius:var(--ds-radius-md);padding:16px;box-shadow:var(--ds-shadow-sm);margin-bottom:16px;}
+.mb-16{margin-bottom:16px;}
+
+@media(max-width:768px){
+  .charts-grid{grid-template-columns:1fr;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .jahr-monat-grid{grid-template-columns:repeat(6,1fr);}
+  .filter-bar{gap:8px;}
+  .header{flex-wrap:wrap;gap:8px;}
+}
+
+/* ─── Zurück-Button ─── */
+.btn-back{display:inline-flex;align-items:center;padding:9px 14px;border-radius:var(--ds-radius-full);border:1px solid var(--line);background:#fff;color:var(--brand-ink);font-size:13px;font-weight:600;text-decoration:none;letter-spacing:.01em;transition:.15s;white-space:nowrap;flex-shrink:0}
+.btn-back:hover{background:var(--ds-brand-light);border-color:var(--ds-brand-light);color:var(--brand-700)}
+
+/* ── iPhone / Mobile Optimierung ── */
+@media(max-width:768px){
+  .iso-hdr{height:auto;min-height:52px;padding:10px 12px;flex-wrap:wrap;gap:8px;}
+  .iso-hdr-right{gap:6px;flex-wrap:wrap;}
+  .iso-hdr-title{font-size:14px;}
+  .sync-info{display:none;}
+  .btn-sync,.btn-back,.btn-export,.btn-reset{padding:8px 12px;font-size:12px;}
+  .nav-bar{padding:8px 8px 0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .nav-bar::-webkit-scrollbar{display:none;}
+  .filter-bar{flex-wrap:wrap;padding:12px;gap:8px;flex-direction:column;align-items:stretch;margin:10px 10px 0;}
+  .ma-select,.filter-bar select,.filter-bar input{min-width:0!important;width:100%;font-size:16px!important;padding:9px 11px;}
+  .container{padding:10px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .kpi,.kpi-card{padding:12px 14px;}
+  .kpi-value{font-size:20px;}
+  .grid-2,.grid-3,.charts-grid{grid-template-columns:1fr;}
+  button,.btn,.btn-back,.nav-btn{min-height:44px;}
+  .card{padding:12px;}
+  body{padding-bottom:env(safe-area-inset-bottom);}
+}
+@media(max-width:390px){
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .kpi-value{font-size:18px;}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="iso-hdr">
+  <a class="iso-hdr-logo" href="/dashboard/" aria-label="Zum Dashboard">
+    <img alt="ISOTEC" src="https://www.isotec.de/styleguide/assets/images/logo.svg">
+    <div class="iso-hdr-divider"></div>
+  </a>
+  <div class="iso-hdr-title">Auswertung<span>Arbeitszeit</span></div>
+  <div class="iso-hdr-right">
+    <a href="/dashboard/" class="btn-back" title="Zurück zum Hauptmenü">&#8592; Hauptmenü</a>
+    <div class="sync-info" id="sync-info" style="color:rgba(255,255,255,.65);font-size:11px">Sync: –</div>
+    <button class="btn-sync" id="btn-sync" onclick="triggerSync()">&#8635; Sync</button>
+  </div>
+</header>
+
+<!-- Navigation -->
+<div class="nav-bar">
+  <button class="nav-btn active" data-tab="monat" onclick="switchTab('monat',this)">Monatsansicht</button>
+  <button class="nav-btn" data-tab="jahr" onclick="switchTab('jahr',this)">Jahresübersicht</button>
+  <button class="nav-btn" data-tab="abwesenheiten" onclick="switchTab('abwesenheiten',this)">Abwesenheiten</button>
+  <button class="nav-btn" data-tab="live" onclick="switchTab('live',this)">🟢 Live</button>
+  <button class="nav-btn" data-tab="einstellungen" onclick="switchTab('einstellungen',this)" style="margin-left:auto">⚙ Einstellungen</button>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+  <div class="nav-monat">
+    <button onclick="changeMonat(-1)">&#8249;</button>
+    <select class="monat-select" id="monat-select" onchange="onMonatChange()"></select>
+    <button onclick="changeMonat(1)">&#8250;</button>
+  </div>
+  <select class="ma-select" id="ma-select" onchange="onFilterChange()">
+    <option value="">Alle Mitarbeiter</option>
+  </select>
+  <div class="filter-bar-right">
+    <button class="btn-reset" onclick="resetFilter()">Filter zurücksetzen</button>
+    <button class="btn-export" onclick="exportCSV()">CSV Export</button>
+    <button class="btn-export" onclick="exportPDFLohnzettel()" style="background:#b91c1c;color:#fff;border-color:#b91c1c">📄 Lohnzettel PDF</button>
+    <button class="btn-export" onclick="autoAssignGlobal()" id="btn-auto-assign-global" style="background:#7c3aed;color:#fff;border-color:#7c3aed">⚡ Auto-Zuordnen</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="container" id="main-content">
+  <div class="loading" id="loading">Lade Daten…</div>
+</div>
+
+<script>
+// =====================================================
+// State
+// =====================================================
+const API = '/iso-zeit-api';
+let state = {
+  tab:          'monat',
+  monat:        '',
+  monatListe:   [],
+  mitarbeiter:  [],
+  maFilter:     '',
+  dashData:     null,
+  jahrData:     null,
+  abwData:      null,
+  charts:       {},
+  // Monat-Kontext für übergreifende Berechnungen
+  monatJahr:    0,
+  monatMon:     0,
+  istLaufend:   false,
+};
+
+const MONAT_NAMEN = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+// =====================================================
+// Init
+// =====================================================
+async function init() {
+  try {
+    const [monate, mitarbeiter] = await Promise.all([
+      apiFetch('/monate'),
+      apiFetch('/mitarbeiter'),
+    ]);
+    state.monatListe = monate || [];
+    state.mitarbeiter = mitarbeiter || [];
+
+    // Monats-Select befüllen
+    const sel = document.getElementById('monat-select');
+    const jetzt = new Date();
+    const aktuellerMonat = `${jetzt.getFullYear()}-${String(jetzt.getMonth()+1).padStart(2,'0')}`;
+
+    // Alle Monate der letzten 2 Jahre anbieten
+    const alleMonateSet = new Set(state.monatListe);
+    let d = new Date(jetzt.getFullYear(), jetzt.getMonth(), 1);
+    for (let i = 0; i < 24; i++) {
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      alleMonateSet.add(key);
+      d.setMonth(d.getMonth() - 1);
+    }
+    const sortedMonate = [...alleMonateSet].sort().reverse();
+
+    sel.innerHTML = sortedMonate.map(m => {
+      const [y, mo] = m.split('-');
+      const name = `${MONAT_NAMEN[parseInt(mo)-1]} ${y} (${state.monatListe.includes(m) ? countEintraege(m) : 0})`;
+      return `<option value="${m}">${m.includes(aktuellerMonat) ? m : m} — ${MONAT_NAMEN[parseInt(mo)-1]} ${y}</option>`;
+    }).join('');
+
+    // Einfacherer Label
+    sel.innerHTML = sortedMonate.map(m => {
+      const [y, mo] = m.split('-');
+      return `<option value="${m}">${MONAT_NAMEN[parseInt(mo)-1]} ${y}</option>`;
+    }).join('');
+
+    state.monat = state.monatListe[0] || aktuellerMonat;
+    sel.value = state.monat;
+
+    // Mitarbeiter-Select
+    const maSel = document.getElementById('ma-select');
+    maSel.innerHTML = '<option value="">Alle Mitarbeiter</option>' +
+      mitarbeiter.filter(m => m.aktiv).map(m =>
+        `<option value="${m.id}">${m.nachname}, ${m.vorname}</option>`
+      ).join('');
+
+    await loadCurrentTab();
+  } catch(e) {
+    showError('Fehler beim Laden: ' + e.message + '<br><small>Stelle sicher, dass die iso-zeit-api läuft.</small>');
+  }
+}
+
+function countEintraege(monat) {
+  return state.monatListe.includes(monat) ? '✓' : '';
+}
+
+// =====================================================
+// API
+// =====================================================
+async function apiFetch(path, options) {
+  const r = await fetch(API + path, options);
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${path}`);
+  return r.json();
+}
+
+async function triggerSync() {
+  const btn = document.getElementById('btn-sync');
+  btn.disabled = true;
+  btn.textContent = 'Sync…';
+  try {
+    const result = await fetch(API + '/sync', {method:'POST'});
+    const data = await result.json();
+    if (data.error) {
+      alert('Sync-Fehler: ' + data.error);
+    } else {
+      document.getElementById('sync-info').textContent =
+        `Sync: ${data.synced_at} | ${data.mitarbeiter} MA | ${data.timesheets} Eintr.`;
+      // Monate neu laden
+      state.monatListe = await apiFetch('/monate');
+      state.mitarbeiter = await apiFetch('/mitarbeiter');
+      await loadCurrentTab();
+    }
+  } catch(e) {
+    alert('Sync fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sync';
+  }
+}
+
+// =====================================================
+// Tab / Filter
+// =====================================================
+function switchTab(tab, el) {
+  state.tab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  loadCurrentTab();
+}
+
+async function loadCurrentTab() {
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.style.display = 'block';
+  document.getElementById('main-content').innerHTML = '<div class="loading" id="loading">Lade Daten…</div>';
+
+  try {
+    if (state.tab === 'monat') {
+      await loadMonat();
+    } else if (state.tab === 'jahr') {
+      await loadJahr();
+    } else if (state.tab === 'abwesenheiten') {
+      await loadAbwesenheiten();
+    } else if (state.tab === 'live') {
+      await loadLive();
+    } else if (state.tab === 'einstellungen') {
+      await loadEinstellungen();
+    }
+  } catch(e) {
+    showError('Fehler: ' + e.message);
+  }
+}
+
+function onMonatChange() {
+  state.monat = document.getElementById('monat-select').value;
+  loadCurrentTab();
+}
+
+function onFilterChange() {
+  state.maFilter = document.getElementById('ma-select').value;
+  loadCurrentTab();
+}
+
+function changeMonat(delta) {
+  const sel = document.getElementById('monat-select');
+  const opts = Array.from(sel.options).map(o => o.value);
+  const idx = opts.indexOf(state.monat);
+  const newIdx = Math.max(0, Math.min(opts.length-1, idx - delta));
+  state.monat = opts[newIdx];
+  sel.value = state.monat;
+  loadCurrentTab();
+}
+
+function resetFilter() {
+  state.maFilter = '';
+  document.getElementById('ma-select').value = '';
+  loadCurrentTab();
+}
+
+// =====================================================
+// Monatsansicht
+// =====================================================
+async function loadMonat() {
+  let url = `/dashboard?monat=${state.monat}`;
+  if (state.maFilter) url += `&mitarbeiter_id=${state.maFilter}`;
+  const data = await apiFetch(url);
+  state.dashData = data;
+
+  // Sync-Info
+  if (data.last_sync) {
+    document.getElementById('sync-info').textContent = `Sync: ${data.last_sync}`;
+  }
+
+  renderMonat(data);
+}
+
+function fmt(sek) {
+  const h = Math.floor(sek / 3600);
+  const m = Math.floor((sek % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+function fmtH(sek) { return (sek/3600).toFixed(1) + 'h'; }
+function fmtEur(n) { return n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' EUR'; }
+function initials(name) {
+  const parts = name.split(',').map(s=>s.trim());
+  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+}
+
+function renderMonat(data) {
+  const kpis = data.kpis || {};
+  // Soll/Ist-Bilanz: nur Mitarbeiter mit mindestens einer Buchung einbeziehen
+  // (wer 0h hat, ist in diesem Monat nicht in Craftboxx aktiv → nicht verzerren)
+  // Bei MA-Filter: nur diesen MA für Soll/Ist-Bilanz verwenden
+  const allAktiveMa = (data.mitarbeiter || []).filter(m => m.arbeit_sek > 0);
+  const aktiveMa = state.maFilter
+    ? allAktiveMa.filter(m => m.user_id === state.maFilter)
+    : allAktiveMa;
+  // istSek: bei Filter direkt aus MA-Daten, sonst KPI-Gesamtwert
+  const istSek = state.maFilter
+    ? (aktiveMa[0]?.arbeit_sek || 0)
+    : (kpis.arbeit_sek || 0);
+
+  // Arbeitstage-String "1,2,3,4,5" → Set von JS-Wochentag-Nummern (0=So,1=Mo,...,5=Fr,6=Sa)
+  // Craftboxx/Backend: 1=Mo,...,5=Fr → JS: Mo=1,Di=2,...,Fr=5
+  function atSet(atStr) {
+    return new Set((atStr || '1,2,3,4,5').split(',').map(x => parseInt(x)).filter(n => !isNaN(n)));
+  }
+
+  const [monatJahr, monatMon] = (data.monat || '').split('-').map(Number);
+  const heute = new Date();
+  const istLaufend = monatJahr === heute.getFullYear() && monatMon === heute.getMonth() + 1;
+  // In globalen State schreiben für renderMitarbeiter()
+  state.monatJahr  = monatJahr;
+  state.monatMon   = monatMon;
+  state.istLaufend = istLaufend;
+
+  // Soll pro MA individuell berechnen (auf bisherige Arbeitstage des MA skalieren)
+  function maArbeitstageImMonat(atStr, nurBisHeute) {
+    const set = atSet(atStr);
+    let count = 0;
+    const bis = nurBisHeute ? new Date(heute.getFullYear(), heute.getMonth(), heute.getDate()) : null;
+    const d = new Date(monatJahr, monatMon - 1, 1);
+    while (d.getMonth() === monatMon - 1) {
+      if (set.has(d.getDay()) && (!bis || d <= bis)) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+
+  // Gesamt-AT des Monats (Mo-Fr, für KPI-Anzeige)
+  const gesamtAT = data.arbeitstage || 20;
+
+  // Soll-Sekunden: Backend berechnet jetzt korrekt mit Feiertagen + SOKA-BAU
+  let sollSek = 0;
+  let abwSek = 0;
+  aktiveMa.forEach(m => {
+    const sollH = istLaufend ? (m.soll_bis_heute_h || 0) : (m.soll_monat_h || 0);
+    sollSek += Math.round(sollH * 3600);
+    abwSek += Math.round((m.abwesenheits_gutschrift_h || 0) * 3600);
+  });
+  const feiertageCount = kpis.feiertage_count || 0;
+
+  const istPlusAbwSek = istSek + abwSek;
+  const diffSek = istPlusAbwSek - sollSek;
+  const diffH   = (diffSek/3600).toFixed(1);
+
+  // Kosten (nur aktive MA)
+  const kosten = aktiveMa.reduce((s,m) =>
+    s + (m.arbeit_sek/3600) * m.stundensatz, 0);
+  const sollKosten = aktiveMa.reduce((s,m) => {
+    const sollH = istLaufend ? (m.soll_bis_heute_h || 0) : (m.soll_monat_h || 0);
+    return s + sollH * m.stundensatz;
+  }, 0);
+
+  const html = `
+    <!-- KPIs -->
+    <div class="kpi-grid mb-16">
+      <div class="kpi-card">
+        <div class="kpi-label">Gesamtstunden</div>
+        <div class="kpi-value">${fmt(istSek)}</div>
+        <div class="kpi-sub">${kpis.eintraege||0} Einträge an ${kpis.tage_gearbeitet||0} Tagen</div>
+      </div>
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-label">Arbeitszeit</div>
+        <div class="kpi-value">${fmtH(kpis.arbeitszeit_sek||0)}</div>
+        <div class="kpi-sub">${fmtH(kpis.arbeitszeit_sek||0)} produktiv</div>
+      </div>
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-label">Fahrzeit</div>
+        <div class="kpi-value">${fmtH(kpis.fahrzeit_sek||0)}</div>
+        <div class="kpi-sub">${kpis.fahrzeit_sek ? Math.round(kpis.fahrzeit_sek/(kpis.arbeit_sek||1)*100) : 0}% der Gesamtzeit</div>
+      </div>
+      <div class="kpi-card kpi-soll-ist ${diffSek>=0?'kpi-green':'kpi-red'}">
+        <div class="kpi-label">Soll/Ist Bilanz</div>
+        <div class="kpi-value">${diffSek>=0?'+':''}${diffH}h</div>
+        <div class="kpi-sub">Soll: ${fmtH(sollSek)}${abwSek > 0 ? ' | Abw: +' + fmtH(abwSek) : ''}${feiertageCount ? ' | ' + feiertageCount + ' FT' : ''}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Fehlzeiten</div>
+        <div class="kpi-value kpi-value" style="color:${(data.missing||[]).length > 0 ? '#b91c1c' : '#15803d'}">${(data.missing||[]).length} Tage</div>
+        <div class="kpi-sub">${(data.fehlzeiten||[]).filter(f=>f.typ!=='Keine Buchung').length} Abwesenheiten (${aktiveMa.length} akt. MA)</div>
+      </div>
+    </div>
+
+    <!-- Charts: Tages-Chart + Wochenvergleich -->
+    <div class="charts-grid mb-16">
+      <div class="chart-card">
+        <div class="chart-title">Stunden pro Tag <span style="font-size:11px;color:#94a3b8;font-weight:400">${(data.tage||[]).length} Tage</span></div>
+        <div class="chart-wrap"><canvas id="chart-tage"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Wochenvergleich</div>
+        <div id="woche-list" class="woche-list"></div>
+        <div class="woche-legend">
+          <span><span class="dot" style="background:#b91c1c"></span>Arbeitszeit</span>
+          <span><span class="dot" style="background:#fca5a5"></span>Fahrzeit</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mitarbeiter + Projekt-Kosten -->
+    <div class="charts-grid mb-16">
+      <div class="chart-card">
+        <div class="chart-title">Projekt Soll/Ist</div>
+        <table class="proj-table">
+          <thead><tr>
+            <th>Projekt</th>
+            <th class="ta-right">Ist-Std.</th>
+            <th class="ta-right">Soll-Std.</th>
+            <th class="ta-right">Abweichung</th>
+            <th>Auslastung</th>
+            <th class="ta-right">Auftragswert</th>
+          </tr></thead>
+          <tbody id="proj-tbody"></tbody>
+        </table>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Mitarbeiter - Soll/Ist</div>
+        <div class="ma-list" id="ma-list"></div>
+      </div>
+    </div>
+
+    <!-- Fehlzeiten -->
+    <div class="card">
+      <div class="section-title">Fehlzeiten <span id="fehl-count" style="font-size:12px;background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:6px;"></span></div>
+      <div class="fehl-list" id="fehl-list"></div>
+    </div>
+
+    <!-- Überstunden-Übersicht -->
+    <div class="section mb-16">
+      <div class="section-title">Überstunden (tagesaktuell)</div>
+      <div id="ueberstunden-section" style="color:#94a3b8;font-size:13px;padding:8px 0">Lade Überstunden...</div>
+    </div>
+  `;
+
+  document.getElementById('main-content').innerHTML = html;
+
+  // Tages-Chart
+  renderTageChart(data.tage || []);
+
+  // Wochenvergleich
+  renderWochen(data.wochen || []);
+
+  // Mitarbeiter Soll/Ist
+  renderMitarbeiter(data.mitarbeiter || []);
+
+  // Projekte
+  renderProjekte(data.projekte || []);
+
+  // Fehlzeiten
+  renderFehlzeiten([...(data.fehlzeiten||[]), ...(data.missing||[])]);
+
+  // Überstunden laden
+  loadUeberstunden();
+}
+
+async function loadUeberstunden() {
+  const el = document.getElementById('ueberstunden-section');
+  if (!el) return;
+  try {
+    const jahr = state.monatJahr || new Date().getFullYear();
+    const res = await apiFetch('/ueberstunden?jahr=' + jahr);
+    const maList = res.mitarbeiter || [];
+    if (maList.length === 0) { el.innerHTML = '<div style="color:#94a3b8;font-size:13px">Keine Daten</div>'; return; }
+
+    let rows = '';
+    maList.forEach(function(ma) {
+      const ak = ma.aktuell || {};
+      const soll = (ak.soll_h || 0).toFixed(1);
+      const ist = (ak.ist_h || 0).toFixed(1);
+      const abw = (ak.abwesenheit_h || 0).toFixed(1);
+      const diff = ak.differenz_h || 0;
+      const kum = ma.kumulativ_h || 0;
+      const diffCol = diff >= 0 ? '#15803d' : '#b91c1c';
+      const kumCol = kum >= 0 ? '#15803d' : '#b91c1c';
+      rows += '<tr style="border-bottom:1px solid #f1f5f9">'
+        + '<td style="padding:8px;font-weight:600;font-size:13px">' + ma.user_name + '</td>'
+        + '<td style="padding:8px;text-align:right;font-size:13px">' + soll + 'h</td>'
+        + '<td style="padding:8px;text-align:right;font-size:13px">' + ist + 'h</td>'
+        + '<td style="padding:8px;text-align:right;font-size:13px">' + abw + 'h</td>'
+        + '<td style="padding:8px;text-align:right;font-size:13px;font-weight:700;color:' + diffCol + '">' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + 'h</td>'
+        + '<td style="padding:8px;text-align:right;font-size:13px;font-weight:700;color:' + kumCol + '">' + (kum >= 0 ? '+' : '') + kum.toFixed(1) + 'h</td>'
+        + '</tr>';
+    });
+
+    el.innerHTML = '<div class="chart-card" style="padding:0;overflow-x:auto">'
+      + '<table style="width:100%;border-collapse:collapse">'
+      + '<thead><tr style="border-bottom:2px solid #e2e8f0;background:#f8fafc">'
+      + '<th style="text-align:left;padding:8px;font-size:11px;color:#64748b;font-weight:600">MITARBEITER</th>'
+      + '<th style="text-align:right;padding:8px;font-size:11px;color:#64748b;font-weight:600">SOLL</th>'
+      + '<th style="text-align:right;padding:8px;font-size:11px;color:#64748b;font-weight:600">IST</th>'
+      + '<th style="text-align:right;padding:8px;font-size:11px;color:#64748b;font-weight:600">ABW.</th>'
+      + '<th style="text-align:right;padding:8px;font-size:11px;color:#64748b;font-weight:600">DIFF</th>'
+      + '<th style="text-align:right;padding:8px;font-size:11px;color:#64748b;font-weight:600">KUMULATIV</th>'
+      + '</tr></thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '</table></div>';
+  } catch(e) {
+    el.innerHTML = '<div style="color:#b91c1c;font-size:13px">Fehler beim Laden der Überstunden</div>';
+  }
+}
+
+function renderTageChart(tage) {
+  const ctx = document.getElementById('chart-tage');
+  if (!ctx) return;
+  if (state.charts.tage) state.charts.tage.destroy();
+  state.charts.tage = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: tage.map(t => t.datum.slice(5)),
+      datasets: [{
+        label: 'Arbeitszeit h',
+        data: tage.map(t => +(t.arbeitszeit_sek/3600).toFixed(2)),
+        backgroundColor: '#b91c1c',
+        borderRadius: 4,
+      },{
+        label: 'Fahrzeit h',
+        data: tage.map(t => +(t.fahrzeit_sek/3600).toFixed(2)),
+        backgroundColor: '#fca5a5',
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {display:false},
+        tooltip: {callbacks:{label: ctx => fmtH(ctx.parsed.y*3600)}},
+      },
+      scales: {
+        x: {stacked:true, ticks:{font:{size:10}}},
+        y: {stacked:true, ticks:{callback: v => v+'h'}},
+      }
+    }
+  });
+}
+
+function renderWochen(wochen) {
+  const el = document.getElementById('woche-list');
+  if (!el) return;
+  const maxSek = Math.max(...wochen.map(w => w.arbeit_sek), 1);
+  el.innerHTML = wochen.map(w => {
+    const arbPct = Math.round(w.arbeit_sek / maxSek * 100);
+    const fPct   = Math.round((w.fahrzeit_sek||0) / maxSek * 100);
+    return `<div class="woche-item">
+      <div class="woche-label">
+        <span>${w.kw}</span>
+        <span>${fmtH(w.arbeit_sek)}</span>
+      </div>
+      <div class="woche-bar-wrap">
+        <div class="woche-bar-arbeit" style="width:${arbPct}%"></div>
+        <div class="woche-bar-fahr" style="width:${fPct}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMitarbeiter(maList) {
+  const el = document.getElementById('ma-list');
+  if (!el) return;
+  // Lokale Arbeitstage-Berechnung mit state-Monatkontext
+  const _mJahr = state.monatJahr || new Date().getFullYear();
+  const _mMon  = state.monatMon  || (new Date().getMonth() + 1);
+  const _heute = new Date();
+  function _atSet(atStr) {
+    return new Set((atStr || '1,2,3,4,5').split(',').map(x => parseInt(x)).filter(n => !isNaN(n)));
+  }
+  function _maAT(atStr, nurBisHeute) {
+    const set = _atSet(atStr);
+    let count = 0;
+    const bis = nurBisHeute ? new Date(_heute.getFullYear(), _heute.getMonth(), _heute.getDate()) : null;
+    const d = new Date(_mJahr, _mMon - 1, 1);
+    while (d.getMonth() === _mMon - 1) {
+      if (set.has(d.getDay()) && (!bis || d <= bis)) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+  el.innerHTML = maList.map(ma => {
+    // Soll aus Backend (SOKA-BAU/manuell + Feiertage)
+    const maSollH_num = state.istLaufend ? (ma.soll_bis_heute_h || 0) : (ma.soll_monat_h || 0);
+    const maAbwH_num = ma.abwesenheits_gutschrift_h || 0;
+    const maSollSek = Math.round(maSollH_num * 3600);
+    const maSollH   = maSollH_num.toFixed(1);
+    const istH = (ma.arbeit_sek/3600).toFixed(1);
+    const diff = ma.arbeit_sek + Math.round(maAbwH_num * 3600) - maSollSek;
+    const diffH = (diff/3600).toFixed(1);
+    const diffSign = diff >= 0 ? '+' : '';
+    const pct = maSollSek > 0 ? Math.min(100, Math.round(ma.arbeit_sek/maSollSek*100)) : 0;
+    const barClass = pct >= 100 ? 'over' : pct < 80 ? 'under' : '';
+    const kosten = Math.round(ma.arbeit_sek/3600 * ma.stundensatz);
+    return `<div class="ma-row" onclick="filterByMA('${ma.user_id}')">
+      <div class="ma-avatar">${initials(ma.user_name)}</div>
+      <div class="ma-info">
+        <div class="ma-name">${ma.user_name} <span style="font-size:10px;color:#94a3b8">Einst.</span></div>
+        <div class="ma-detail">${ma.tage} Tage, ${ma.eintraege} Eintr. | Soll bis heute: ${maSollH}h</div>
+        <div class="ma-soll-bar"><div class="ma-soll-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="ma-hours">
+        <div class="ma-hours-val">${istH}/${maSollH}h</div>
+        <div class="ma-hours-sub">${diffSign}${diffH}h</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProjekte(projekte) {
+  const tbody = document.getElementById('proj-tbody');
+  if (!tbody) return;
+  const total = projekte.reduce((s,p) => s + p.lohnkosten, 0);
+  tbody.innerHTML = projekte.map(p => {
+    const istH  = (p.ist_sek/3600).toFixed(1);
+    const sollH = p.soll_sek ? (p.soll_sek/3600).toFixed(1) : null;
+    const abwH  = p.abweichung_sek != null ? (p.abweichung_sek/3600).toFixed(1) : null;
+    const fort  = p.soll_sek ? Math.round(p.ist_sek/p.soll_sek*100) : null;
+
+    // Fortschrittsbalken
+    let fortBar = '';
+    if (fort !== null) {
+      const pct   = Math.min(fort, 150);
+      const color = fort > 110 ? '#dc2626' : fort > 90 ? '#f59e0b' : '#15803d';
+      fortBar = `<div style="background:#f1f5f9;border-radius:4px;height:6px;margin-top:3px;">
+        <div style="background:${color};width:${Math.min(pct,100)}%;height:100%;border-radius:4px;"></div>
+      </div>
+      <div style="font-size:10px;color:${color};font-weight:600">${fort}%</div>`;
+    }
+
+    // Abweichung
+    let abwCell = '–';
+    if (abwH !== null) {
+      const sign  = p.abweichung_sek >= 0 ? '+' : '';
+      const color = p.abweichung_sek > 0 ? '#dc2626' : '#15803d';
+      abwCell = `<span style="color:${color};font-weight:600">${sign}${abwH}h</span>`;
+    }
+
+    const salesVal = p.sales_volume ? fmtEur(p.sales_volume) : '<span style="color:#94a3b8">–</span>';
+    const projNr = p.projekt_nr ? `<div style="font-size:10px;color:#94a3b8">${p.projekt_nr}</div>` : '';
+    return `<tr>
+      <td><div style="font-weight:600">${p.name}</div>${projNr}</td>
+      <td class="ta-right">${istH}h</td>
+      <td class="ta-right">${sollH ? sollH+'h' : '<span style="color:#94a3b8">–</span>'}</td>
+      <td class="ta-right">${abwCell}</td>
+      <td>${fortBar || '<span style="color:#94a3b8;font-size:11px">kein Budget</span>'}</td>
+      <td class="ta-right">${salesVal}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderFehlzeiten(fehlzeiten) {
+  const el = document.getElementById('fehl-list');
+  const cnt = document.getElementById('fehl-count');
+  if (!el) return;
+  // Sortieren: nach Datum
+  fehlzeiten.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  const missing = fehlzeiten.filter(f => f.typ === 'Keine Buchung');
+  if (cnt) cnt.textContent = missing.length;
+
+  if (!fehlzeiten.length) {
+    el.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">Keine Fehlzeiten</div>';
+    return;
+  }
+  el.innerHTML = fehlzeiten.map(f => {
+    const typLower = (f.typ||'').toLowerCase();
+    let cls = 'fehl-missing';
+    if (typLower.includes('urlaub')) cls = 'fehl-urlaub';
+    else if (typLower.includes('krank')) cls = 'fehl-krank';
+    else if (typLower.includes('sonder')) cls = 'fehl-sonder';
+    else if (typLower.includes('fort') || typLower.includes('schu')) cls = 'fehl-fort';
+    const wochentag = f.datum ? new Date(f.datum+'T12:00:00').toLocaleDateString('de-DE',{weekday:'short'}) : '';
+    return `<div class="fehl-row">
+      <div class="ma-avatar" style="width:28px;height:28px;font-size:10px">${initials(f.user_name||'')}</div>
+      <div class="fehl-name">${f.user_name||'–'}</div>
+      <div class="fehl-datum">${wochentag} ${f.datum||''}</div>
+      <span class="fehl-chip ${cls}">${f.typ||'–'}</span>
+    </div>`;
+  }).join('');
+}
+
+function filterByMA(maId) {
+  // Modal mit Tageseinträgen des MA zeigen
+  showMADetail(maId);
+}
+
+async function showMADetail(maId) {
+  const dashData = state.dashData;
+  if (!dashData) return;
+  const ma = (dashData.mitarbeiter || []).find(m => m.user_id === maId);
+  if (!ma) return;
+
+  let tsEintraege = [];
+  let plannerTage = {};
+  try {
+    const [ts, detail] = await Promise.all([
+      apiFetch('/timesheets?monat=' + (dashData.monat || state.monat) + '&mitarbeiter_id=' + maId),
+      apiFetch('/stundenzettel-detail?monat=' + (dashData.monat || state.monat) + '&mitarbeiter_id=' + maId).catch(() => ({ mitarbeiter: [] })),
+    ]);
+    tsEintraege = ts;
+    // Planner-Kundendaten indexieren: datum → kunde
+    const maDetail = (detail.mitarbeiter || []).find(m => m.user_id === maId);
+    if (maDetail && maDetail.tage) {
+      maDetail.tage.forEach(t => { if (t.kunde) plannerTage[t.datum] = t.kunde; });
+    }
+  } catch(e) {}
+
+  const maSollH = state.istLaufend ? (ma.soll_bis_heute_h || 0) : (ma.soll_monat_h || 0);
+  const maAbwH = ma.abwesenheits_gutschrift_h || 0;
+  const maSollSek = Math.round(maSollH * 3600);
+  const diff = ma.arbeit_sek + Math.round(maAbwH * 3600) - maSollSek;
+  const diffSign = diff >= 0 ? '+' : '';
+  const diffColor = diff >= 0 ? '#15803d' : '#b91c1c';
+
+  const tageMap = {};
+  tsEintraege.forEach(ts => {
+    const d = ts.datum;
+    if (!tageMap[d]) tageMap[d] = { eintraege: [], netto_sek: 0, pause_sek: 0, beginn: null, ende: null, projekt: '', hat_manuelles_projekt: false, ts_ids: [] };
+    tageMap[d].eintraege.push(ts);
+    tageMap[d].netto_sek += (ts.netto_sek || 0);
+    tageMap[d].pause_sek += (ts.pause_sek || 0);
+    tageMap[d].ts_ids.push(ts.id);
+    if (ts.started_at && (!tageMap[d].beginn || ts.started_at < tageMap[d].beginn)) tageMap[d].beginn = ts.started_at;
+    if (ts.ended_at && (!tageMap[d].ende || ts.ended_at > tageMap[d].ende)) tageMap[d].ende = ts.ended_at;
+    if (ts.hat_manuelles_projekt && ts.projekt && ts.projekt !== '\u2013') {
+      tageMap[d].projekt = ts.projekt;
+      tageMap[d].hat_manuelles_projekt = true;
+    } else if (!tageMap[d].hat_manuelles_projekt && ts.projekt && ts.projekt !== '\u2013') {
+      tageMap[d].projekt = ts.projekt;
+    }
+  });
+
+  // Planner-Kundendaten in tageMap einmischen
+  Object.keys(tageMap).forEach(d => {
+    if (plannerTage[d] && !tageMap[d].hat_manuelles_projekt) {
+      tageMap[d].projekt = plannerTage[d];
+    }
+  });
+
+  const sortedDaten = Object.keys(tageMap).sort();
+  const WT = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+
+  function buildTabelleHTML() {
+    let html = '';
+    sortedDaten.forEach(datum => {
+      const tag = tageMap[datum];
+      const tagH = Math.floor(tag.netto_sek/3600);
+      const tagM = Math.floor((tag.netto_sek%3600)/60);
+      const pauseM = Math.round(tag.pause_sek/60);
+      const d = new Date(datum + 'T12:00:00');
+      const wtName = WT[d.getDay()];
+      const datumDE = datum.split('-').reverse().join('.');
+      const projName = tag.projekt || '';
+      const hasProj = projName.length > 0;
+      const projIconText = hasProj ? '\u2713' : '\uff0b';
+      const projClass = hasProj ? 'has-proj' : '';
+      const projDisplayName = hasProj ? projName : 'Projekt zuordnen\u2026';
+      html += '<tr data-datum="' + datum + '">'
+        + '<td class="td-bold">' + wtName + ', ' + datumDE + '</td>'
+        + '<td>' + (tag.beginn ? tag.beginn.substring(0,5) : '\u2013') + ' \u2013 ' + (tag.ende ? tag.ende.substring(0,5) : '\u2013') + '</td>'
+        + '<td class="td-bold" style="color:#b91c1c">' + tagH + 'h ' + tagM + 'm</td>'
+        + '<td style="color:#64748b">' + (pauseM > 0 ? pauseM + 'm' : '\u2013') + '</td>'
+        + '<td><div class="proj-cell ' + projClass + '" onclick="toggleProjDropdown(event, \'' + datum + '\', \'' + maId + '\')" title="Projekt zuordnen">'
+        + '<span class="proj-cell-icon">' + projIconText + '</span>'
+        + '<span class="proj-cell-name">' + projDisplayName + '</span>'
+        + '<span class="proj-cell-icon" style="font-size:9px">\u25be</span>'
+        + '</div></td>'
+        + '</tr>';
+    });
+    if (!html) html = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Keine Buchungen im gew\u00e4hlten Monat</td></tr>';
+    return html;
+  }
+
+  function rebuildTableBody() {
+    const tbody = document.querySelector('#ma-modal .ma-modal-table tbody');
+    if (tbody) tbody.innerHTML = buildTabelleHTML();
+  }
+
+  const headerSub = (dashData.monat||state.monat) + ' \u00b7 ' + ma.eintraege + ' Buchungen \u00b7 ' + ma.tage + ' Arbeitstage';
+  const kpiDiffVal = diffSign + (diff/3600).toFixed(1) + 'h';
+  const html = '<div class="ma-modal-overlay" id="ma-modal" onclick="if(event.target===this)closeMAModal()">'
+    + '<div class="ma-modal">'
+    + '<div class="ma-modal-header">'
+    + '<div>'
+    + '<div class="ma-modal-title">' + ma.user_name + '</div>'
+    + '<div style="font-size:11px;opacity:.8;margin-top:2px">' + headerSub + '</div>'
+    + '</div>'
+    + '<button class="ma-modal-close" onclick="closeMAModal()">\u2715</button>'
+    + '</div>'
+    + '<div class="ma-modal-kpis">'
+    + '<div class="ma-modal-kpi"><div class="ma-modal-kpi-val">' + (ma.arbeit_sek/3600).toFixed(1) + 'h</div><div class="ma-modal-kpi-lbl">Ist-Zeit</div></div>'
+    + '<div class="ma-modal-kpi"><div class="ma-modal-kpi-val" style="color:#64748b">' + maSollH.toFixed(1) + 'h</div><div class="ma-modal-kpi-lbl">Soll ' + (state.istLaufend ? 'bis heute' : 'gesamt') + '</div></div>'
+    + (maAbwH > 0 ? '<div class="ma-modal-kpi"><div class="ma-modal-kpi-val" style="color:#2563eb">+' + maAbwH.toFixed(1) + 'h</div><div class="ma-modal-kpi-lbl">Abwesenheit</div></div>' : '')
+    + '<div class="ma-modal-kpi"><div class="ma-modal-kpi-val" style="color:' + diffColor + '">' + kpiDiffVal + '</div><div class="ma-modal-kpi-lbl">Differenz</div></div>'
+    + '</div>'
+    + '<div class="ma-modal-body">'
+    + '<table class="ma-modal-table">'
+    + '<thead><tr><th>Tag</th><th>Uhrzeit</th><th>Netto</th><th>Pause</th>'
+    + '<th style="min-width:200px">Projekt <span style="font-weight:400;color:#b91c1c;font-size:9px">\u25cf klicken zum Zuordnen</span></th>'
+    + '</tr></thead>'
+    + '<tbody>' + buildTabelleHTML() + '</tbody>'
+    + '</table>'
+    + '<div style="padding:10px 16px;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<span>Klick auf <b>Projekt-Feld</b> → Auftrag zuordnen. Wird gespeichert und erscheint im PDF.</span>'
+    + '<button onclick="autoAssignProjekte()" id="btn-auto-assign" style="margin-left:auto;background:#b91c1c;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">⚡ Auto-Zuordnen</button>'
+    + '<span id="auto-assign-status" style="font-size:11px;color:#15803d"></span>'
+    + '</div></div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  window._maModalState = { tageMap, maId, monat: dashData.monat || state.monat, rebuildTableBody };
+}
+
+async function toggleProjDropdown(event, datum, maId) {
+  event.stopPropagation();
+  const existing = document.getElementById('proj-dd');
+  if (existing) {
+    if (existing.dataset.datum === datum) { existing.remove(); return; }
+    existing.remove();
+  }
+  const cell = event.currentTarget;
+  cell.classList.add('proj-saving');
+  let vorschlaege = [];
+  try {
+    vorschlaege = await apiFetch('/assignment-vorschlaege?datum=' + datum);
+  } catch(e) {}
+  cell.classList.remove('proj-saving');
+
+  const dd = document.createElement('div');
+  dd.className = 'proj-dropdown';
+  dd.id = 'proj-dd';
+  dd.dataset.datum = datum;
+
+  const state2 = window._maModalState;
+  const currentProj = (state2 && state2.tageMap[datum]) ? state2.tageMap[datum].projekt : '';
+  const datumDE = datum.split('-').reverse().join('.');
+
+  let ddHTML = '<div class="proj-dropdown-header">Projekt f\u00fcr ' + datumDE + ' w\u00e4hlen</div>';
+
+  if (vorschlaege.length === 0) {
+    ddHTML += '<div class="proj-dropdown-item" style="color:#94a3b8;cursor:default">Keine Craftboxx-Termine an diesem Tag gefunden</div>';
+  } else {
+    vorschlaege.forEach(function(v) {
+      const name = v.projekt_name || '';
+      const nr = v.projekt_nr || '';
+      const id = v.projekt_id || '';
+      const isSelected = currentProj === name;
+      const selClass = isSelected ? ' selected' : '';
+      const escapedName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const escapedId = id.replace(/'/g, "\\'");
+      ddHTML += '<div class="proj-dropdown-item' + selClass + '" onclick="assignProj(\'' + datum + '\', \'' + escapedId + '\', \'' + escapedName + '\')">'
+        + '<div>' + name + '</div>'
+        + '<div class="proj-nr">' + nr + '</div>'
+        + '</div>';
+    });
+  }
+  ddHTML += '<div class="proj-dropdown-item clear-item" onclick="assignProj(\'' + datum + '\', \'\', \'\')">\u2715 Kein Projekt / Zuordnung entfernen</div>';
+  dd.innerHTML = ddHTML;
+
+  const rect = cell.getBoundingClientRect();
+  dd.style.position = 'fixed';
+  dd.style.top = (rect.bottom + 4) + 'px';
+  dd.style.left = Math.min(rect.left, window.innerWidth - 440) + 'px';
+  document.body.appendChild(dd);
+
+  setTimeout(function() {
+    document.addEventListener('click', function closeDd(e) {
+      if (!dd.contains(e.target)) { dd.remove(); document.removeEventListener('click', closeDd); }
+    });
+  }, 10);
+}
+
+async function assignProj(datum, projektId, projektName) {
+  const dd = document.getElementById('proj-dd');
+  if (dd) dd.remove();
+  const state2 = window._maModalState;
+  if (!state2) return;
+  const tag = state2.tageMap[datum];
+  if (!tag) return;
+  const row = document.querySelector('#ma-modal tr[data-datum="' + datum + '"]');
+  if (row) row.style.opacity = '0.5';
+  try {
+    for (const tsId of tag.ts_ids) {
+      await apiFetch('/timesheet-projekts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ timesheet_id: tsId, projekt_id: projektId, projekt_name: projektName })
+      });
+    }
+    tag.projekt = projektName;
+    tag.hat_manuelles_projekt = projektName.length > 0;
+    state2.rebuildTableBody();
+    if (row) row.style.opacity = '1';
+  } catch(e) {
+    alert('Fehler beim Speichern: ' + e.message);
+    if (row) row.style.opacity = '1';
+  }
+}
+
+function closeMAModal() {
+  const m = document.getElementById('ma-modal');
+  if (m) m.remove();
+  const dd = document.getElementById('proj-dd');
+  if (dd) dd.remove();
+  window._maModalState = null;
+}
+
+async function autoAssignProjekte() {
+  const btn = document.getElementById('btn-auto-assign');
+  const status = document.getElementById('auto-assign-status');
+  if (!btn || !window._maModalState) return;
+  
+  btn.disabled = true;
+  btn.textContent = '⏳ Zuordne…';
+  if (status) status.textContent = '';
+  
+  const { monat, maId } = window._maModalState;
+  
+  try {
+    const result = await apiFetch('/auto-assign', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ monat: monat, mitarbeiter_id: maId, overwrite: false })
+    });
+    
+    // Update local tageMap with new assignments from the result
+    const assigned = (result.details || []).filter(d => d.result === 'assigned');
+    assigned.forEach(d => {
+      if (window._maModalState.tageMap[d.datum]) {
+        window._maModalState.tageMap[d.datum].projekt = d.projekt;
+        window._maModalState.tageMap[d.datum].hat_manuelles_projekt = true;
+      }
+    });
+    
+    // Rebuild table
+    if (window._maModalState.rebuildTableBody) {
+      window._maModalState.rebuildTableBody();
+    }
+    
+    // Show result message
+    const totalAssigned = result.assigned || 0;
+    const docCount = result.assigned_doc || 0;
+    const docHint = docCount > 0 ? ' (davon ' + docCount + '× per Foto-Match)' : '';
+    const msg = totalAssigned > 0
+      ? '✓ ' + totalAssigned + ' Tag' + (totalAssigned !== 1 ? 'e' : '') + ' zugeordnet' + docHint
+      : result.skipped_no_termin > 0
+        ? '– Keine Craftboxx-Termine gefunden (' + result.skipped_no_termin + ' Tage ohne Termin)'
+        : '– Keine Zuordnung möglich';
+    if (status) { status.textContent = msg; status.style.color = result.assigned > 0 ? '#15803d' : '#d97706'; }
+    
+    btn.textContent = '⚡ Auto-Zuordnen';
+    btn.disabled = false;
+  } catch(e) {
+    btn.textContent = '⚡ Auto-Zuordnen';
+    btn.disabled = false;
+    if (status) { status.textContent = '❌ Fehler: ' + e.message; status.style.color = '#b91c1c'; }
+  }
+}
+
+// Hilfsfunktion: Arbeitstage für MA-Modal (nutzt state.monatJahr/monatMon)
+function _maAT2(atStr, nurBisHeute) {
+  const set = new Set((atStr || '1,2,3,4,5').split(',').map(x => parseInt(x)).filter(n => !isNaN(n)));
+  let count = 0;
+  const heute = new Date();
+  const bis = nurBisHeute ? new Date(heute.getFullYear(), heute.getMonth(), heute.getDate()) : null;
+  const mj = state.monatJahr || heute.getFullYear();
+  const mm = state.monatMon  || (heute.getMonth() + 1);
+  const d = new Date(mj, mm - 1, 1);
+  while (d.getMonth() === mm - 1) {
+    if (set.has(d.getDay()) && (!bis || d <= bis)) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+
+// =====================================================
+// Jahresübersicht
+// =====================================================
+async function autoAssignGlobal() {
+  const btn = document.getElementById('btn-auto-assign-global');
+  if (!btn) return;
+  const monat = (state.monatJahr || '') + '-' + String(state.monatMon || '').padStart(2,'0');
+  if (!monat || monat.length < 7) { alert('Bitte zuerst einen Monat auswählen.'); return; }
+  btn.disabled = true;
+  btn.textContent = '⏳ Zuordne…';
+  try {
+    const result = await apiFetch('/auto-assign', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ monat: monat, overwrite: false })
+    });
+    const totalAssigned2 = result.assigned || 0;
+    const docCount2 = result.assigned_doc || 0;
+    const docHint2 = docCount2 > 0 ? ' (davon ' + docCount2 + '× per Foto-Match)' : '';
+    const msg = totalAssigned2 > 0
+      ? totalAssigned2 + ' Tage zugeordnet' + docHint2 + '!'
+      : result.skipped_no_termin > 0
+        ? 'Keine Craftboxx-Termine gefunden (' + result.skipped_no_termin + ' Tage ohne Termin)'
+        : 'Keine Zuordnung möglich';
+    alert(msg);
+    if (totalAssigned2 > 0) loadCurrentTab();
+  } catch(e) {
+    alert('Fehler: ' + e.message);
+  }
+  btn.textContent = '⚡ Auto-Zuordnen';
+  btn.disabled = false;
+}
+
+async function loadJahr() {
+  const jahr = state.monat ? state.monat.slice(0,4) : new Date().getFullYear();
+  let url = `/jahresuebersicht?jahr=${jahr}`;
+  if (state.maFilter) url += `&mitarbeiter_id=${state.maFilter}`;
+  const data = await apiFetch(url);
+  state.jahrData = data;
+
+  if (data.last_sync) {
+    document.getElementById('sync-info').textContent = `Sync: ${data.last_sync}`;
+  }
+
+  renderJahr(data);
+}
+
+function renderJahr(data) {
+  const maList = (data.mitarbeiter||[]).filter(m =>
+    !state.maFilter || m.user_id === state.maFilter
+  );
+
+  const html = `
+    <div style="margin-bottom:12px;font-size:14px;color:#64748b;font-weight:600">
+      Jahresübersicht ${data.jahr} — ${maList.length} Mitarbeiter
+    </div>
+    ${maList.map(ma => renderJahrMA(ma)).join('')}
+  `;
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function renderJahrMA(ma) {
+  const diff = ma.jahres_diff;
+  const diffSign = diff >= 0 ? '+' : '';
+  return `<div class="jahr-ma-card">
+    <div class="jahr-ma-header">
+      <div class="ma-avatar" style="width:38px;height:38px;font-size:13px">${initials(ma.user_name)}</div>
+      <div>
+        <div class="jahr-ma-name">${ma.user_name}</div>
+        <div style="font-size:11px;color:#94a3b8">${ma.monate_mit_daten} Monate mit Daten | ⌀ ${ma.avg_h_pro_monat}h/Monat</div>
+      </div>
+    </div>
+    <div class="jahr-ma-kpis">
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val">${ma.jahres_ist.toFixed(1)}h</div>
+        <div class="jahr-kpi-lbl">Jahres-Ist</div>
+      </div>
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val" style="color:#64748b">${ma.jahres_soll}h</div>
+        <div class="jahr-kpi-lbl">Jahres-Soll</div>
+      </div>
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val" style="color:${diff>=0?'#15803d':'#b91c1c'}">${diffSign}${diff.toFixed(1)}h</div>
+        <div class="jahr-kpi-lbl">Differenz</div>
+      </div>
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val" style="color:${(ma.kumulativ_h||0)>=0?'#15803d':'#b91c1c'};font-size:18px">${(ma.kumulativ_h||0)>=0?'+':''}${(ma.kumulativ_h||0).toFixed(1)}h</div>
+        <div class="jahr-kpi-lbl">Kumulativ ÜS</div>
+      </div>
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val" style="color:#15803d;font-size:14px">${fmtEur(ma.jahres_lohnkosten)}</div>
+        <div class="jahr-kpi-lbl">Lohnkosten</div>
+      </div>
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val" style="color:#2563eb;font-size:18px">${ma.urlaub_genommen}/${ma.jahresurlaub}</div>
+        <div class="jahr-kpi-lbl">Urlaub</div>
+      </div>
+      <div class="jahr-kpi">
+        <div class="jahr-kpi-val" style="color:#dc2626;font-size:18px">${ma.krank_tage}</div>
+        <div class="jahr-kpi-lbl">Krank (Tage)</div>
+      </div>
+    </div>
+    <div class="jahr-monat-grid">
+      ${(ma.monate||[]).map(m => {
+        const d = m.diff_h;
+        const dSign = d >= 0 ? '+' : '';
+        const hasData = m.ist_h > 0;
+        const kum = m.kumulativ_h;
+        const kumStr = kum != null ? ((kum >= 0 ? '+' : '') + kum.toFixed(1) + 'h') : '';
+        return `<div class="jahr-monat-cell" style="${hasData?'':'opacity:.4'}">
+          <div class="jahr-monat-name">${MONAT_NAMEN[m.monat_nr-1]}</div>
+          <div class="jahr-monat-ist">${m.ist_h}h</div>
+          ${hasData ? `<div class="jahr-monat-diff ${d>=0?'diff-pos':'diff-neg'}">${dSign}${d}h</div>` : '<div class="jahr-monat-diff">–</div>'}
+          ${kumStr ? `<div style="font-size:9px;color:${kum>=0?'#15803d':'#b91c1c'};margin-top:2px">Σ${kumStr}</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+// =====================================================
+// Abwesenheiten
+// =====================================================
+async function loadAbwesenheiten() {
+  let url = `/abwesenheiten?monat=${state.monat}`;
+  if (state.maFilter) url += `&mitarbeiter_id=${state.maFilter}`;
+  const [abwData, typenData] = await Promise.all([
+    apiFetch(url),
+    apiFetch('/abwesenheitstypen'),
+  ]);
+  state.abwData  = abwData;
+  state.abwTypen = typenData;
+  renderAbwesenheiten(abwData, typenData);
+}
+
+async function saveAbwesenheit() {
+  const ma   = document.getElementById('abw-form-ma').value;
+  const typ  = document.getElementById('abw-form-typ').value;
+  const typName = document.getElementById('abw-form-typ').options[document.getElementById('abw-form-typ').selectedIndex]?.text || typ;
+  const von  = document.getElementById('abw-form-von').value;
+  const bis  = document.getElementById('abw-form-bis').value || von;
+  const appr = document.getElementById('abw-form-appr').checked ? 1 : 0;
+  if (!ma || !typ || !von) { alert('Bitte Mitarbeiter, Typ und Von-Datum ausfüllen.'); return; }
+  const btn = document.getElementById('abw-save-btn');
+  btn.disabled = true; btn.textContent = 'Speichert…';
+  try {
+    const res = await fetch(API + '/abwesenheiten', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({employee_id: ma, type_id: typ, type_name: typName, date_from: von, date_to: bis, approved: appr})
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    await loadAbwesenheiten();
+  } catch(e) { alert('Fehler: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Speichern'; }
+}
+
+async function deleteAbwesenheit(abId) {
+  if (!confirm('Abwesenheit wirklich löschen?')) return;
+  try {
+    const res = await fetch(API + '/abwesenheiten/' + encodeURIComponent(abId), {method: 'DELETE'});
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.error || 'Löschen fehlgeschlagen');
+    }
+    await loadAbwesenheiten();
+  } catch(e) { alert('Fehler: ' + e.message); }
+}
+
+function renderAbwesenheiten(abw, typen) {
+  // Mitarbeiterliste für Formular
+  const maOptions = (state.mitarbeiter || [])
+    .filter(m => m.aktiv && m.in_auswertung !== 0)
+    .map(m => `<option value="${m.id}">${m.nachname}, ${m.vorname}</option>`).join('');
+
+  const typOptions = (typen || []).map(t =>
+    `<option value="${t.id}">${t.name}</option>`
+  ).join('') || `<option value="urlaub">Urlaub</option><option value="krank">Krank</option><option value="sonder">Sonderurlaub</option><option value="fort">Fortbildung</option>`;
+
+  // Tabelle
+  const rows = abw.length ? abw.map(ab => {
+    const isLocal = String(ab.id).startsWith('local_');
+    const delBtn = `<button onclick="deleteAbwesenheit('${ab.id}')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:14px;padding:2px 6px" title="Löschen">✕</button>`;
+    return `<tr>
+      <td style="padding:8px 10px;font-weight:600">${ab.user_name||'–'}</td>
+      <td style="padding:8px 10px"><span class="fehl-chip ${getAbwClass(ab.type_name)}">${ab.type_name||'–'}</span></td>
+      <td style="padding:8px 10px;color:#64748b">${ab.date_from||'–'}</td>
+      <td style="padding:8px 10px;color:#64748b">${ab.date_to||'–'}</td>
+      <td style="padding:8px 10px;text-align:center" class="${ab.approved?'approved-yes':'approved-no'}">${ab.approved?'✓ Ja':'○ Nein'}</td>
+      <td style="padding:8px 4px;text-align:center">${isLocal ? delBtn : '<span style="color:#e2e8f0;font-size:11px">Craftboxx</span>'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="color:#94a3b8;text-align:center;padding:24px;font-size:13px">Keine Abwesenheiten in ${state.monat}</td></tr>`;
+
+  const html = `
+    <!-- Formular: Neue Abwesenheit -->
+    <div class="chart-card" style="margin-bottom:16px">
+      <div class="chart-title">Abwesenheit erfassen</div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:#64748b;font-weight:600">MITARBEITER</label>
+          <select id="abw-form-ma" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px;min-width:180px">
+            <option value="">– Auswählen –</option>${maOptions}
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:#64748b;font-weight:600">TYP</label>
+          <select id="abw-form-typ" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px;min-width:140px">
+            ${typOptions}
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:#64748b;font-weight:600">VON</label>
+          <input id="abw-form-von" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:#64748b;font-weight:600">BIS (leer = gleicher Tag)</label>
+          <input id="abw-form-bis" type="date" style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;font-size:13px">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:#64748b;font-weight:600">GENEHMIGT</label>
+          <label style="display:flex;align-items:center;gap:6px;padding:6px 0;cursor:pointer">
+            <input id="abw-form-appr" type="checkbox" checked style="width:16px;height:16px;accent-color:#b91c1c">
+            <span style="font-size:13px">Ja</span>
+          </label>
+        </div>
+        <button id="abw-save-btn" onclick="saveAbwesenheit()"
+          style="background:#b91c1c;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-end">
+          Speichern
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabelle -->
+    <div class="chart-card" style="padding:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0">
+        <div class="chart-title" style="margin:0">Abwesenheiten ${state.monat} <span style="font-size:12px;background:#fef2f2;color:#b91c1c;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:6px">${abw.length}</span></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">
+        <thead><tr style="border-bottom:2px solid #f1f5f9;background:#f8fafc">
+          <th style="text-align:left;padding:8px 10px;font-size:11px;color:#94a3b8;font-weight:600">MITARBEITER</th>
+          <th style="text-align:left;padding:8px 10px;font-size:11px;color:#94a3b8;font-weight:600">TYP</th>
+          <th style="text-align:left;padding:8px 10px;font-size:11px;color:#94a3b8;font-weight:600">VON</th>
+          <th style="text-align:left;padding:8px 10px;font-size:11px;color:#94a3b8;font-weight:600">BIS</th>
+          <th style="text-align:center;padding:8px 10px;font-size:11px;color:#94a3b8;font-weight:600">GENEHMIGT</th>
+          <th style="padding:8px 4px"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function getAbwClass(typ) {
+  const t = (typ||'').toLowerCase();
+  if (t.includes('urlaub')) return 'fehl-urlaub';
+  if (t.includes('krank')) return 'fehl-krank';
+  if (t.includes('sonder')) return 'fehl-sonder';
+  if (t.includes('fort') || t.includes('schu')) return 'fehl-fort';
+  return 'fehl-missing';
+}
+
+// =====================================================
+// Live-Ansicht
+// =====================================================
+let liveRefreshTimer = null;
+
+async function loadLive() {
+  const res = await fetch(API + '/live');
+  if (!res.ok) throw new Error('Live-Abruf fehlgeschlagen');
+  const data = await res.json();
+  renderLive(data);
+  // Auto-Refresh alle 60 Sekunden
+  if (liveRefreshTimer) clearTimeout(liveRefreshTimer);
+  liveRefreshTimer = setTimeout(() => { if (state.tab === 'live') loadLive(); }, 60000);
+}
+
+function fmtMin(min) {
+  if (!min && min !== 0) return '–';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function renderLive(data) {
+  const eingest  = data.eingestempelt || [];
+  const gebucht  = data.heute_gebucht || [];
+  const nichtGeb = data.nicht_gebucht || [];
+
+  // Gerade aktiv – Karten
+  let aktivHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px 0">Keine laufenden Stempelungen</div>';
+  if (eingest.length) {
+    aktivHTML = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">';
+    eingest.forEach(function(e) {
+      const startZeit = e.start ? new Date(e.start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '–';
+      aktivHTML += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;min-width:180px">'
+        + '<div style="font-weight:700;color:#15803d">' + e.name + '</div>'
+        + '<div style="font-size:12px;color:#64748b;margin-top:2px">seit ' + startZeit + '</div>'
+        + '<div style="font-size:12px;color:#15803d;font-weight:600">' + fmtMin(e.laufend_min) + ' laufend</div>'
+        + '</div>';
+    });
+    aktivHTML += '</div>';
+  }
+
+  // Heute gebucht – Tabellenzeilen
+  let gebRows = '<tr><td colspan="4" style="color:#94a3b8;text-align:center;padding:16px">Noch keine Buchungen heute</td></tr>';
+  if (gebucht.length) {
+    gebRows = '';
+    gebucht.forEach(function(ma) {
+      const istAktiv  = eingest.some(function(e) { return e.employee_id === ma.employee_id; });
+      const startZeit = ma.erster_start ? new Date(ma.erster_start).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '–';
+      const statusBadge = istAktiv
+        ? '<span style="background:#dcfce7;color:#15803d;border-radius:var(--ds-radius-md);padding:2px 10px;font-size:11px;font-weight:600">● aktiv</span>'
+        : '<span style="background:#f1f5f9;color:#64748b;border-radius:var(--ds-radius-md);padding:2px 10px;font-size:11px">ausgestempelt</span>';
+      gebRows += '<tr style="border-bottom:1px solid #f1f5f9">'
+        + '<td style="padding:8px"><div style="font-weight:600">' + ma.name + '</div></td>'
+        + '<td style="text-align:right;padding:8px;color:#64748b">' + startZeit + '</td>'
+        + '<td style="text-align:right;padding:8px;font-weight:600;color:#1e293b">' + fmtMin(ma.gesamt_min) + '</td>'
+        + '<td style="text-align:center;padding:8px">' + statusBadge + '</td>'
+        + '</tr>';
+    });
+  }
+
+  // Noch nicht gebucht – Chips
+  let nichtGebHTML = '<div style="color:#15803d;font-size:13px;padding:12px 0">✓ Alle aktiven Mitarbeiter haben heute gebucht</div>';
+  if (nichtGeb.length) {
+    nichtGebHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">';
+    nichtGeb.forEach(function(ma) {
+      nichtGebHTML += '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:6px 12px;font-size:13px;color:#92400e;font-weight:600">' + ma.name + '</div>';
+    });
+    nichtGebHTML += '</div>';
+  }
+
+  const html = '<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>'
+    + '<div style="padding:20px;max-width:900px">'
+    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">'
+    + '<h2 style="font-size:18px;font-weight:700">Live-Status — ' + (data.datum||'') + '</h2>'
+    + '<span style="font-size:12px;color:#94a3b8">Abgefragt: ' + (data.abgefragt_um||'') + '</span>'
+    + '<button onclick="loadLive()" style="margin-left:auto;background:#b91c1c;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">↻ Aktualisieren</button>'
+    + '</div>'
+    // Gerade aktiv
+    + '<div class="chart-card" style="margin-bottom:16px">'
+    + '<div class="chart-title" style="display:flex;align-items:center;gap:8px">'
+    + '<span style="width:10px;height:10px;border-radius:50%;background:#15803d;display:inline-block;animation:pulse 1.5s infinite"></span>'
+    + ' Gerade aktiv (' + eingest.length + ')</div>'
+    + aktivHTML + '</div>'
+    // Heute gebucht
+    + '<div class="chart-card" style="margin-bottom:16px">'
+    + '<div class="chart-title">Heute gebucht (' + gebucht.length + ')</div>'
+    + '<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px">'
+    + '<thead><tr style="border-bottom:2px solid #e2e8f0">'
+    + '<th style="text-align:left;padding:6px 8px;color:#64748b;font-weight:600">Mitarbeiter</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:#64748b;font-weight:600">Erster Einstempel</th>'
+    + '<th style="text-align:right;padding:6px 8px;color:#64748b;font-weight:600">Gesamt heute</th>'
+    + '<th style="text-align:center;padding:6px 8px;color:#64748b;font-weight:600">Status</th>'
+    + '</tr></thead><tbody>' + gebRows + '</tbody></table></div>'
+    // Noch nicht gebucht
+    + '<div class="chart-card">'
+    + '<div class="chart-title" style="color:#b91c1c">Noch nicht gebucht heute (' + nichtGeb.length + ')</div>'
+    + nichtGebHTML + '</div>'
+    + '</div>';
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+// =====================================================
+// Einstellungen: Mitarbeiter konfigurieren
+// =====================================================
+async function loadEinstellungen() {
+  const [maRes, projRes] = await Promise.all([
+    fetch(API + '/mitarbeiter'),
+    fetch(API + '/projekte')
+  ]);
+  if (!maRes.ok) throw new Error('Mitarbeiterliste konnte nicht geladen werden');
+  const data = await maRes.json();
+  const projekte = projRes.ok ? await projRes.json() : [];
+  renderEinstellungen(data, projekte);
+}
+
+async function toggleAuswertung(maId, val) {
+  const btn = document.getElementById('toggle-' + maId);
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(API + '/mitarbeiter/' + maId + '/config', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({in_auswertung: val ? 1 : 0})
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    const row = document.getElementById('ma-row-' + maId);
+    if (row) row.style.opacity = val ? '1' : '0.45';
+    const label = document.getElementById('label-' + maId);
+    if (label) label.textContent = val ? 'In Auswertung' : 'Ausgeschlossen';
+    if (label) label.style.color = val ? '#15803d' : '#94a3b8';
+  } catch(e) {
+    alert('Fehler: ' + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveArbeitstage(maId) {
+  const tage = [];
+  for (let i = 1; i <= 5; i++) {
+    const cb = document.getElementById('at-' + maId + '-' + i);
+    if (cb && cb.checked) tage.push(i);
+  }
+  if (tage.length === 0) return; // Mindestens 1 Tag muss gewählt sein
+  const val = tage.join(',');
+  const statusEl = document.getElementById('save-status-' + maId);
+  try {
+    const res = await fetch(API + '/mitarbeiter/' + maId + '/config', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({arbeitstage: val})
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    if (statusEl) { statusEl.textContent = '✓'; statusEl.style.color = '#15803d'; setTimeout(() => { statusEl.textContent = ''; }, 1500); }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗'; statusEl.style.color = '#dc2626'; }
+  }
+}
+
+async function saveMaConfig(maId, field, inputEl) {
+  const val = parseFloat(inputEl.value);
+  if (isNaN(val) || val <= 0) { inputEl.classList.add('input-error'); return; }
+  inputEl.classList.remove('input-error');
+  inputEl.disabled = true;
+  const statusEl = document.getElementById('save-status-' + maId);
+  try {
+    const body = {};
+    body[field] = val;
+    const res = await fetch(API + '/mitarbeiter/' + maId + '/config', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    if (statusEl) { statusEl.textContent = '✓'; statusEl.style.color = '#15803d'; setTimeout(() => { statusEl.textContent = ''; }, 1500); }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗ Fehler'; statusEl.style.color = '#dc2626'; }
+    alert('Fehler: ' + e.message);
+  } finally {
+    inputEl.disabled = false;
+  }
+}
+
+async function saveMaConfigAny(maId, body) {
+  const statusEl = document.getElementById('save-status-' + maId);
+  try {
+    const res = await fetch(API + '/mitarbeiter/' + maId + '/config', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    if (statusEl) { statusEl.textContent = '✓'; statusEl.style.color = '#15803d'; setTimeout(() => { statusEl.textContent = ''; }, 1500); }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗'; statusEl.style.color = '#dc2626'; }
+    alert('Fehler: ' + e.message);
+  }
+}
+
+function onSollModusChange(maId, selectEl) {
+  const modus = selectEl.value;
+  const whInput = document.getElementById('wh-' + maId);
+  if (whInput) whInput.disabled = (modus !== 'manuell');
+  saveMaConfigAny(maId, {soll_modus: modus});
+}
+
+function onWochenStundenChange(maId, inputEl) {
+  const val = parseFloat(inputEl.value);
+  if (isNaN(val) || val <= 0) { inputEl.classList.add('input-error'); return; }
+  inputEl.classList.remove('input-error');
+  saveMaConfigAny(maId, {wochen_stunden: val});
+}
+
+function onUeberstundenStartChange(maId, inputEl) {
+  const val = parseFloat(inputEl.value);
+  if (isNaN(val)) { inputEl.classList.add('input-error'); return; }
+  inputEl.classList.remove('input-error');
+  saveMaConfigAny(maId, {ueberstunden_start: val});
+}
+
+function buildProjektSelect(maId, currentId, currentName, projekte) {
+  let html = '<select class="proj-select" id="std-proj-' + maId + '" onchange="saveStandardProjekt(\'' + maId + '\', this)">'
+    + '<option value="">-- kein Standard-Projekt --</option>';
+  (projekte || []).forEach(function(p) {
+    const selected = (p.projekt_id === currentId && currentId) ? ' selected' : '';
+    const label = p.projekt_name + (p.projekt_nr ? ' (' + p.projekt_nr + ')' : '');
+    html += '<option value="' + p.projekt_id.replace(/"/g, '&quot;') + '" data-name="' + p.projekt_name.replace(/"/g, '&quot;') + '"' + selected + '>' + label + '</option>';
+  });
+  html += '</select>';
+  return html;
+}
+
+async function saveStandardProjekt(maId, selectEl) {
+  const projektId = selectEl.value;
+  const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  const projektName = projektId ? (selectedOpt.dataset.name || selectedOpt.text.split(' (')[0]) : '';
+  const statusEl = document.getElementById('save-status-' + maId);
+  selectEl.disabled = true;
+  try {
+    const res = await fetch(API + '/mitarbeiter/' + maId + '/config', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ standard_projekt_id: projektId, standard_projekt_name: projektName })
+    });
+    if (!res.ok) throw new Error('Speichern fehlgeschlagen');
+    if (statusEl) { statusEl.textContent = '\u2713'; statusEl.style.color = '#15803d'; setTimeout(function() { statusEl.textContent = ''; }, 1500); }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '\u2717'; statusEl.style.color = '#dc2626'; }
+    alert('Fehler: ' + e.message);
+  } finally {
+    selectEl.disabled = false;
+  }
+}
+
+function renderEinstellungen(mitarbeiter, projekte) {
+  const css = '<style>'
+    + '.toggle-wrap{display:flex;align-items:center;gap:10px}'
+    + '.toggle{position:relative;display:inline-block;width:44px;height:24px}'
+    + '.toggle input{opacity:0;width:0;height:0}'
+    + '.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;border-radius:24px;transition:.2s}'
+    + '.slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}'
+    + 'input:checked + .slider{background:#15803d}'
+    + 'input:checked + .slider:before{transform:translateX(20px)}'
+    + 'input:disabled + .slider{opacity:.5;cursor:default}'
+    + '.eins-input{width:64px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 6px;font-size:13px;text-align:right;color:#1e293b;background:#f8fafc;transition:border .15s}'
+    + '.eins-input:focus{outline:none;border-color:#b91c1c;background:#fff}'
+    + '.eins-input:hover{border-color:#94a3b8}'
+    + '.eins-input.input-error{border-color:#dc2626;background:#fef2f2}'
+    + '.eins-unit{font-size:12px;color:#94a3b8;margin-left:3px}'
+    + '.save-status{font-size:11px;font-weight:600;min-width:20px;display:inline-block}'
+    + '.at-wrap{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}'
+    + '.at-day{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}'
+    + '.at-day input{display:none}'
+    + '.at-day span{font-size:10px;font-weight:700;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1.5px solid #e2e8f0;color:#94a3b8;transition:.15s;background:#f8fafc}'
+    + '.at-day input:checked + span{background:#b91c1c;border-color:#b91c1c;color:#fff}'
+    + '.at-day:hover span{border-color:#b91c1c}'
+    + '.proj-select{width:100%;min-width:160px;max-width:220px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 6px;font-size:12px;color:#1e293b;background:#f8fafc;transition:border .15s;cursor:pointer}'
+    + '.proj-select:focus{outline:none;border-color:#b91c1c;background:#fff}'
+    + '.proj-select:hover{border-color:#94a3b8}'
+    + '</style>';
+
+  const TAGE_LABELS = ['Mo','Di','Mi','Do','Fr'];  // Index 0→Tag 1 (Mo), ..., 4→Tag 5 (Fr)
+
+  let rows = '';
+  mitarbeiter.forEach(function(ma) {
+    const inAusw = ma.in_auswertung !== 0;
+    const name = (ma.nachname || '') + (ma.nachname && ma.vorname ? ', ' : '') + (ma.vorname || '');
+    const soll  = ma.soll_stunden || 160;
+    const satz  = ma.stundensatz  || 75;
+    const sollModus = ma.soll_modus || 'auto';
+    const atSet = new Set((ma.arbeitstage || '1,2,3,4,5').split(',').map(x => parseInt(x)));
+
+    // Wochentag-Checkboxen aufbauen
+    let atHtml = '<div class="at-wrap">';
+    for (let i = 1; i <= 5; i++) {
+      const checked = atSet.has(i) ? ' checked' : '';
+      atHtml += '<label class="at-day">'
+        + '<input type="checkbox" id="at-' + ma.id + '-' + i + '"' + checked
+        + ' onchange="saveArbeitstage(\'' + ma.id + '\')">'
+        + '<span>' + TAGE_LABELS[i-1] + '</span>'
+        + '</label>';
+    }
+    atHtml += '</div>';
+
+    rows += '<tr id="ma-row-' + ma.id + '" style="border-bottom:1px solid #f1f5f9;opacity:' + (inAusw ? '1' : '0.45') + '">'
+      // Name
+      + '<td style="padding:12px 8px">'
+      + '<div style="font-weight:600;font-size:14px">' + name + '</div>'
+      + '<div style="font-size:11px;color:#94a3b8">' + (ma.email || '') + '</div>'
+      + '</td>'
+      // Toggle In Auswertung
+      + '<td style="padding:12px 8px;text-align:center">'
+      + '<div class="toggle-wrap" style="justify-content:center">'
+      + '<label class="toggle"><input id="toggle-' + ma.id + '" type="checkbox"' + (inAusw ? ' checked' : '') + ' onchange="toggleAuswertung(\'' + ma.id + '\', this.checked)"><span class="slider"></span></label>'
+      + '<span id="label-' + ma.id + '" style="font-size:12px;font-weight:600;color:' + (inAusw ? '#15803d' : '#94a3b8') + '">' + (inAusw ? 'In Auswertung' : 'Ausgeschlossen') + '</span>'
+      + '</div>'
+      + '</td>'
+      // Arbeitstage (Wochentag-Checkboxen)
+      + '<td style="padding:12px 8px;text-align:center">' + atHtml + '</td>'
+      // Soll-Modus (Auto/Manuell)
+      + '<td style="padding:12px 8px;text-align:center">'
+      + '<select class="proj-select" style="min-width:100px;max-width:140px" onchange="onSollModusChange(\'' + ma.id + '\', this)">'
+      + '<option value="auto"' + (sollModus === 'auto' ? ' selected' : '') + '>SOKA-BAU</option>'
+      + '<option value="manuell"' + (sollModus === 'manuell' ? ' selected' : '') + '>Manuell</option>'
+      + '</select>'
+      + '</td>'
+      // Wochen-Stunden (nur bei manuell aktiv)
+      + '<td style="padding:12px 8px;text-align:right;white-space:nowrap">'
+      + '<input id="wh-' + ma.id + '" class="eins-input" type="number" min="1" max="60" step="0.5" value="' + (ma.wochen_stunden || 40) + '"'
+      + (sollModus !== 'manuell' ? ' disabled' : '')
+      + ' onchange="onWochenStundenChange(\'' + ma.id + '\', this)"'
+      + ' onblur="onWochenStundenChange(\'' + ma.id + '\', this)">'
+      + '<span class="eins-unit">h/Wo</span>'
+      + '</td>'
+      // ÜS-Startwert
+      + '<td style="padding:12px 8px;text-align:right;white-space:nowrap">'
+      + '<input class="eins-input" type="number" step="0.5" value="' + (ma.ueberstunden_start || 0) + '"'
+      + ' onchange="onUeberstundenStartChange(\'' + ma.id + '\', this)"'
+      + ' onblur="onUeberstundenStartChange(\'' + ma.id + '\', this)">'
+      + '<span class="eins-unit">h</span>'
+      + '</td>'
+      // Standard-Projekt
+      + '<td style="padding:12px 8px">'
+      + buildProjektSelect(ma.id, ma.standard_projekt_id || '', ma.standard_projekt_name || '', projekte)
+      + '</td>'
+      // Status-Anzeige (Feedback)
+      + '<td style="padding:12px 8px;text-align:center;width:32px">'
+      + '<span id="save-status-' + ma.id + '" class="save-status"></span>'
+      + '</td>'
+      + '</tr>';
+  });
+
+  const html = css
+    + '<div style="padding:20px;max-width:780px">'
+    + '<h2 style="font-size:18px;font-weight:700;margin-bottom:6px">Mitarbeiter-Einstellungen</h2>'
+    + '<p style="font-size:13px;color:#64748b;margin-bottom:20px">Soll-Stunden und Stundensatz direkt bearbeiten — Änderungen werden sofort gespeichert. Mitarbeiter ohne Craftboxx-Stempelung können aus Auswertungen ausgeschlossen werden.</p>'
+    + '<div class="chart-card" style="padding:0">'
+    + '<table style="width:100%;border-collapse:collapse">'
+    + '<thead><tr style="border-bottom:2px solid #e2e8f0;background:#f8fafc">'
+    + '<th style="text-align:left;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">MITARBEITER</th>'
+    + '<th style="text-align:center;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">IN AUSWERTUNG</th>'
+    + '<th style="text-align:center;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">ARBEITSTAGE</th>'
+    + '<th style="text-align:center;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">SOLL-MODUS</th>'
+    + '<th style="text-align:right;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">WOCHEN-H</th>'
+    + '<th style="text-align:right;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">ÜS-START</th>'
+    + '<th style="text-align:left;padding:10px 8px;font-size:12px;color:#64748b;font-weight:600">STANDARD-PROJEKT</th>'
+    + '<th style="padding:10px 8px"></th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '<p style="font-size:11px;color:#94a3b8;margin-top:12px">Tipp: Tab-Taste zum schnellen Wechsel zwischen Feldern. Änderungen wirken sofort auf alle Auswertungen.</p>'
+    + '</div>';
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+// =====================================================
+// PDF Lohnzettel Export (jsPDF)
+// =====================================================
+async function exportPDFLohnzettel() {
+  if (!state.dashData) {
+    alert('Bitte zuerst den Monat laden (Monatsansicht öffnen).');
+    return;
+  }
+  const data = state.dashData;
+  const monat = data.monat || state.monat;
+  const [yjahr, ymon] = monat.split('-').map(Number);
+  const monatName = MONAT_NAMEN[ymon - 1] + ' ' + yjahr;
+
+  // Abwesenheiten + Timesheets + Stundenzettel-Detail (Planner-Kundenzuordnung) laden
+  let abwData = [], tsData = [], detailData = {};
+  try {
+    const detailUrl = '/stundenzettel-detail?monat=' + monat + (state.maFilter ? '&mitarbeiter_id=' + state.maFilter : '');
+    const [abw, ts, detail] = await Promise.all([
+      apiFetch('/abwesenheiten?monat=' + monat),
+      apiFetch('/timesheets?monat=' + monat),
+      apiFetch(detailUrl).catch(() => ({ mitarbeiter: [] })),
+    ]);
+    abwData = abw;
+    tsData = ts;
+    (detail.mitarbeiter || []).forEach(m => { detailData[m.user_id] = m; });
+  } catch(e) { /* ignorieren */ }
+
+  const { jsPDF } = window.jspdf;
+
+  // MA-Filter: wenn gesetzt nur diesen MA, sonst alle aktiven
+  const maListe = (data.mitarbeiter || []).filter(m => {
+    if (state.maFilter) return m.user_id === state.maFilter;
+    return m.arbeit_sek > 0;
+  });
+
+  if (maListe.length === 0) {
+    alert('Keine Mitarbeiter mit Daten für diesen Monat.');
+    return;
+  }
+
+  // Arbeitstage-Helfer (identisch zu renderMonat)
+  function atSet2(atStr) {
+    return new Set((atStr || '1,2,3,4,5').split(',').map(x => parseInt(x)).filter(n => !isNaN(n)));
+  }
+  function maArbeitstage(atStr, nurBisHeute) {
+    const set = atSet2(atStr);
+    let count = 0;
+    const heute = new Date();
+    const bis = nurBisHeute ? new Date(heute.getFullYear(), heute.getMonth(), heute.getDate()) : null;
+    const d = new Date(yjahr, ymon - 1, 1);
+    while (d.getMonth() === ymon - 1) {
+      if (set.has(d.getDay()) && (!bis || d <= bis)) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+  const heute = new Date();
+  const istLaufend = yjahr === heute.getFullYear() && ymon === heute.getMonth() + 1;
+  const gesamtATGlobal = data.arbeitstage || 20;
+
+  // Ein PDF mit allen MAs (eine Seite pro MA)
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210; const H = 297;
+  const marginL = 18; const marginR = 18; const contentW = W - marginL - marginR;
+
+  maListe.forEach((ma, idx) => {
+    if (idx > 0) doc.addPage();
+
+    // ── Hilfsfunktionen ──────────────────────────────────────────────────────
+    const hh = s => { const h = Math.floor(s/3600); const m = Math.floor((s%3600)/60); return `${h}h ${m}m`; };
+    const hDec = s => (s/3600).toFixed(2) + ' h';
+    const pct = (a,b) => b > 0 ? Math.round(a/b*100) : 0;
+
+    // ── Timesheets + Abwesenheiten dieses MA ─────────────────────────────────
+    const maAbw = abwData.filter(a => a.user_id === ma.user_id);
+    const maTs  = tsData.filter(t => t.employee_id === ma.user_id)
+                        .sort((a, b) => (a.datum + a.started_at).localeCompare(b.datum + b.started_at));
+    const urlaubTage  = maAbw.filter(a => (a.type_name||'').toLowerCase().includes('urlaub') && !((a.type_name||'').toLowerCase().includes('sonder'))).length;
+    const krankTage   = maAbw.filter(a => (a.type_name||'').toLowerCase().includes('krank')).length;
+    const sonderTage  = maAbw.filter(a => (a.type_name||'').toLowerCase().includes('sonder')).length;
+    const fortTage    = maAbw.filter(a => (a.type_name||'').toLowerCase().includes('fort') || (a.type_name||'').toLowerCase().includes('schul')).length;
+
+    // ── Soll/Ist pro MA (Backend-berechnet mit Feiertagen + SOKA-BAU) ──────
+    const sollH = istLaufend ? (ma.soll_bis_heute_h || 0) : (ma.soll_monat_h || 0);
+    const abwH = ma.abwesenheits_gutschrift_h || 0;
+    const sollSek = Math.round(sollH * 3600);
+    const istSek  = (ma.arbeit_sek || 0);
+    const diffSek = istSek + Math.round(abwH * 3600) - sollSek;
+    const diffSign = diffSek >= 0 ? '+' : '';
+
+    // ── Farben ───────────────────────────────────────────────────────────────
+    const ROT   = [185, 28, 28];
+    const DUNKEL= [30,  41,  59];
+    const GRAU  = [100, 116, 139];
+    const HELL  = [241, 245, 249];
+    const GRUEN = [21, 128, 61];
+    const GELB  = [180, 83, 9];
+
+    // ── KOPFZEILE (roter Header) ─────────────────────────────────────────────
+    doc.setFillColor(...ROT);
+    doc.rect(0, 0, W, 32, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Arbeitszeit-Nachweis', marginL, 12);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('ISOTEC Ottsen — Abrechnungsmonat: ' + monatName, marginL, 18.5);
+    doc.text('Erstellungsdatum: ' + new Date().toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}), marginL, 23.5);
+    doc.text('Dokument gemäß §21a ArbZG / §4 NachwG', marginL, 28.5);
+
+    // ISOTEC rechts
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('ISOTEC', W - marginR - 1, 14, {align: 'right'});
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Ottsen & Kernpartner', W - marginR - 1, 19, {align: 'right'});
+    doc.text('Abdichtungstechnik GmbH', W - marginR - 1, 23.5, {align: 'right'});
+
+    let y = 40;
+
+    // ── MA-INFO BLOCK ─────────────────────────────────────────────────────────
+    doc.setFillColor(...HELL);
+    doc.roundedRect(marginL, y, contentW, 22, 3, 3, 'F');
+
+    doc.setTextColor(...DUNKEL);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(ma.user_name || '–', marginL + 5, y + 8);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAU);
+    const atNamen = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+    const atSet3 = atSet2(ma.arbeitstage);
+    const atAnzeige = atNamen.filter((_, i) => atSet3.has(i + 1)).join(', ');
+    doc.text('Arbeitstage: ' + atAnzeige + '  |  Soll-Stunden/Monat: ' + ma.soll_stunden + ' h  |  Abrechnungsmonat: ' + monatName, marginL + 5, y + 14);
+    doc.text('Mitarbeiter-ID: ' + ma.user_id, marginL + 5, y + 19);
+
+    y += 28;
+
+    // ── STUNDEN-ÜBERSICHT (KPI-Karten) ───────────────────────────────────────
+    doc.setTextColor(...DUNKEL);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('ARBEITSZEITNACHWEIS', marginL, y);
+
+    const linienY = y + 1.5;
+    doc.setDrawColor(...ROT);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, linienY, marginL + 60, linienY);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(marginL + 62, linienY, marginL + contentW, linienY);
+
+    y += 6;
+
+    // 4 KPI-Boxen nebeneinander
+    const boxW = (contentW - 9) / 4;
+    const kpiData = [
+      { lbl: 'SOLL-STUNDEN',   val: hh(sollSek),           sub: (ma.soll_modus === 'manuell' ? (ma.wochen_stunden || 40) + 'h/Wo' : 'SOKA-BAU'),    farbe: GRAU },
+      { lbl: 'IST + ABW.',     val: hh(istSek + Math.round(abwH * 3600)), sub: (abwH > 0 ? '+' + abwH.toFixed(1) + 'h Abwesenheit' : ma.tage + ' Tage gearbeitet'), farbe: ROT },
+      { lbl: 'DIFFERENZ',      val: diffSign + hh(Math.abs(diffSek)), sub: diffSign + (diffSek/3600).toFixed(1) + ' h', farbe: diffSek >= 0 ? GRUEN : GELB },
+      { lbl: 'EINTRÄGE',       val: '' + ma.eintraege,      sub: 'Buchungen im Monat',             farbe: GRAU },
+    ];
+
+    kpiData.forEach((k, i) => {
+      const bx = marginL + i * (boxW + 3);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(bx, y, boxW, 20, 2, 2, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(bx, y, boxW, 20, 2, 2, 'S');
+
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.text(k.lbl, bx + 4, y + 5);
+
+      doc.setTextColor(...k.farbe);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(k.val, bx + 4, y + 13);
+
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.text(k.sub, bx + 4, y + 18);
+    });
+
+    y += 26;
+
+    // ── ARBEITSZEIT DETAIL ────────────────────────────────────────────────────
+    doc.setTextColor(...DUNKEL);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('DETAILLIERTE ARBEITSZEITAUSWERTUNG', marginL, y);
+    doc.setDrawColor(...ROT);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 1.5, marginL + 80, y + 1.5);
+
+    y += 7;
+
+    // Tabelle mit Zeilen
+    const felder = [
+      ['Soll-Stunden (Monat)', ma.soll_stunden + ' h / Monat'],
+      ['Arbeitstage (Soll)', maArbeitstage(ma.arbeitstage, false) + ' Tage'],
+      ['Arbeitstage (Ist)', ma.tage + ' Tage gearbeitet'],
+      ['Erfasste Arbeitszeit (Ist)', hh(istSek) + '  =  ' + hDec(istSek)],
+      ['Pausenzeit gesamt', hh(ma.pause_sek || 0)],
+      ['Differenz Soll/Ist', diffSign + hh(Math.abs(diffSek)) + '  (' + diffSign + (diffSek/3600).toFixed(2) + ' h)'],
+      ['Auslastung', pct(istSek, sollSek) + ' % der Soll-Arbeitszeit'],
+      ['Buchungs-Einträge', ma.eintraege + ' Einträge in Craftboxx'],
+    ];
+
+    felder.forEach((f, i) => {
+      const rowY = y + i * 7;
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(marginL, rowY - 3, contentW, 7, 'F');
+      }
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(f[0], marginL + 4, rowY + 1);
+
+      doc.setTextColor(...DUNKEL);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(f[1], marginL + contentW - 4, rowY + 1, {align: 'right'});
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.2);
+      doc.line(marginL, rowY + 4, marginL + contentW, rowY + 4);
+    });
+
+    y += felder.length * 7 + 6;
+
+    // ── TÄGLICHE BUCHUNGEN ────────────────────────────────────────────────────
+    // Neue Seite für Buchungsdetails falls Platz knapp
+    doc.addPage();
+    y = 20;
+
+    // Mini-Header oben auf Folgeseite
+    doc.setFillColor(...ROT);
+    doc.rect(0, 0, W, 10, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(`Stundennachweis – ${ma.user_name} – ${monatName}`, marginL, 7);
+    doc.text('Tägliche Buchungsübersicht', W - marginR - 1, 7, {align: 'right'});
+    y = 16;
+
+    doc.setTextColor(...DUNKEL);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('TÄGLICHE BUCHUNGSÜBERSICHT', marginL, y);
+    doc.setDrawColor(...ROT);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 1.5, marginL + 70, y + 1.5);
+    y += 7;
+
+    // Tabellenkopf — eine Zeile pro Tag (aggregiert)
+    const colDatum  = marginL;
+    const colWT     = marginL + 28;
+    const colStart  = marginL + 40;
+    const colEnde   = marginL + 54;
+    const colNetto  = marginL + 68;
+    const colPause  = marginL + 86;
+    const colAnzahl = marginL + 104;
+    const colProjekt = marginL + 116;
+
+    const _drawTblHeader = () => {
+      doc.setFillColor(30, 41, 59);
+      doc.rect(marginL, y - 3.5, contentW, 7, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.text('DATUM',        colDatum  + 1, y + 0.5);
+      doc.text('TAG',          colWT     + 1, y + 0.5);
+      doc.text('BEGINN',       colStart  + 1, y + 0.5);
+      doc.text('ENDE',         colEnde   + 1, y + 0.5);
+      doc.text('NETTO',        colNetto  + 1, y + 0.5);
+      doc.text('PAUSE',        colPause  + 1, y + 0.5);
+      doc.text('BUCHUNGEN',    colAnzahl + 1, y + 0.5);
+      doc.text('PROJEKT',       colProjekt + 1, y + 0.5);
+      y += 5;
+    };
+    _drawTblHeader();
+
+    const WT_KURZ = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+    const zeilenHoehe = 6.5;
+
+    // Timesheets nach Datum aggregieren (eine Zeile pro Tag)
+    const tageAgg = {};
+    maTs.forEach(ts => {
+      if (!tageAgg[ts.datum]) {
+        tageAgg[ts.datum] = {
+          datum: ts.datum,
+          started_at: ts.started_at || '–',
+          ended_at:   ts.ended_at   || '–',
+          netto_sek:  0,
+          pause_sek:  0,
+          anzahl:     0,
+          notizen:    [],
+          projekt:    ts.projekt || '',
+        };
+      }
+      const tag = tageAgg[ts.datum];
+      tag.netto_sek += ts.netto_sek || 0;
+      tag.pause_sek += ts.pause_sek || 0;
+      tag.anzahl    += 1;
+      // Frühester Start, spätestes Ende
+      if (ts.started_at && ts.started_at < tag.started_at) tag.started_at = ts.started_at;
+      if (ts.ended_at   && ts.ended_at   > tag.ended_at)   tag.ended_at   = ts.ended_at;
+      if (ts.notiz) tag.notizen.push(ts.notiz);
+      // Use the saved project assignment (prefer hat_manuelles_projekt entry)
+      if (ts.hat_manuelles_projekt && ts.projekt) tag.projekt = ts.projekt;
+      else if (!tag.projekt && ts.projekt) tag.projekt = ts.projekt;
+    });
+    // Planner-Kundendaten einmischen (überschreibt Timesheet-Projekt wenn Planner verfügbar)
+    const maDetailPDF = detailData[ma.user_id];
+    if (maDetailPDF && maDetailPDF.tage) {
+      maDetailPDF.tage.forEach(pt => {
+        if (pt.kunde && tageAgg[pt.datum]) {
+          tageAgg[pt.datum].projekt = pt.kunde;
+        }
+      });
+    }
+
+    const sortedTage = Object.values(tageAgg).sort((a,b) => a.datum.localeCompare(b.datum));
+
+    if (sortedTage.length === 0) {
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.text('Keine Buchungen für diesen Zeitraum vorhanden.', marginL + 4, y + 3);
+      y += 10;
+    } else {
+      sortedTage.forEach((tag, i) => {
+        // Seitenumbruch prüfen
+        if (y + zeilenHoehe > H - 18) {
+          doc.addPage();
+          doc.setFillColor(...ROT);
+          doc.rect(0, 0, W, 10, 'F');
+          doc.setTextColor(255,255,255);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.text(`Stundennachweis – ${ma.user_name} – ${monatName} (Fortsetzung)`, marginL, 7);
+          y = 16;
+          _drawTblHeader();
+        }
+
+        const d = new Date(tag.datum + 'T12:00:00');
+        const wtName  = WT_KURZ[d.getDay()];
+        const datumDE = tag.datum.split('-').reverse().join('.');
+        const netH = Math.floor(tag.netto_sek/3600);
+        const netM = Math.floor((tag.netto_sek%3600)/60);
+        const pauseM = Math.round(tag.pause_sek/60);
+        const projektTxt = (tag.projekt || tag.notizen.filter(Boolean).join('; ')).substring(0, 50);
+
+        const rowBg = i % 2 === 0 ? [255,255,255] : [248,250,252];
+        doc.setFillColor(...rowBg);
+        doc.rect(marginL, y - 1, contentW, zeilenHoehe, 'F');
+
+        doc.setTextColor(...DUNKEL);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.text(datumDE,           colDatum  + 1, y + 3);
+        doc.text(wtName,            colWT     + 1, y + 3);
+        doc.text(tag.started_at,    colStart  + 1, y + 3);
+        doc.text(tag.ended_at,      colEnde   + 1, y + 3);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${netH}h ${netM}m`, colNetto + 1, y + 3);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...GRAU);
+        doc.text(pauseM > 0 ? `${pauseM}m` : '–', colPause + 1, y + 3);
+        doc.text(String(tag.anzahl),  colAnzahl + 1, y + 3);
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(6.5);
+        doc.text(projektTxt,          colProjekt + 1, y + 3);
+
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.15);
+        doc.line(marginL, y + zeilenHoehe - 1, marginL + contentW, y + zeilenHoehe - 1);
+        y += zeilenHoehe;
+      });
+
+      // Gesamtsumme-Zeile
+      y += 3;
+      doc.setFillColor(...ROT);
+      doc.rect(marginL, y - 2, contentW, 8, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      const gesamtH = Math.floor(istSek/3600);
+      const gesamtM = Math.floor((istSek%3600)/60);
+      const gesamtPauseM = Math.round((ma.pause_sek||0)/60);
+      doc.text('GESAMT', marginL + 4, y + 3.5);
+      doc.text(`${gesamtH}h ${gesamtM}m`, colNetto + 1, y + 3.5);
+      doc.text(`${gesamtPauseM}m`, colPause + 1, y + 3.5);
+      doc.text(`${ma.eintraege} Buchungen`, colAnzahl + 1, y + 3.5);
+      y += 12;
+    }
+
+
+    // Abwesenheiten + Rechtliches auf eigener Seite
+    doc.addPage();
+    // Mini-Header
+    doc.setFillColor(...ROT);
+    doc.rect(0, 0, W, 10, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(`Arbeitszeit-Nachweis – ${ma.user_name} – ${monatName}`, marginL, 7);
+    doc.text('Abwesenheiten & Rechtliches', W - marginR - 1, 7, {align: 'right'});
+    y = 20;
+
+    // ── ABWESENHEITEN ──────────────────────────────────────────────────────────
+    doc.setTextColor(...DUNKEL);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('ABWESENHEITEN', marginL, y);
+    doc.setDrawColor(...ROT);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 1.5, marginL + 45, y + 1.5);
+
+    y += 7;
+
+    const abwFelder = [
+      ['Urlaub', urlaubTage + ' Tag' + (urlaubTage !== 1 ? 'e' : '')],
+      ['Krankheit', krankTage + ' Tag' + (krankTage !== 1 ? 'e' : '')],
+      ['Sonderurlaub', sonderTage + ' Tag' + (sonderTage !== 1 ? 'e' : '')],
+      ['Fortbildung / Schulung', fortTage + ' Tag' + (fortTage !== 1 ? 'e' : '')],
+    ];
+
+    abwFelder.forEach((f, i) => {
+      const rowY = y + i * 7;
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(marginL, rowY - 3, contentW, 7, 'F');
+      }
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(f[0], marginL + 4, rowY + 1);
+
+      doc.setTextColor(...DUNKEL);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text(f[1], marginL + contentW - 4, rowY + 1, {align: 'right'});
+
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.2);
+      doc.line(marginL, rowY + 4, marginL + contentW, rowY + 4);
+    });
+
+    y += abwFelder.length * 7 + 4;
+
+    // Einzelne Abwesenheitseinträge (falls vorhanden)
+    if (maAbw.length > 0) {
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      maAbw.forEach((a, i) => {
+        if (y + 6 > H - 35) return; // Seitenende vermeiden
+        const von = a.date_from ? new Date(a.date_from).toLocaleDateString('de-DE') : '–';
+        const bis = a.date_to   ? new Date(a.date_to  ).toLocaleDateString('de-DE') : von;
+        const apprText = a.approved ? '✓ genehmigt' : '○ ausstehend';
+        doc.text(
+          '  • ' + (a.type_name || '–') + ':  ' + von + (von !== bis ? ' – ' + bis : '') + '  |  ' + apprText,
+          marginL + 4, y + 2
+        );
+        y += 5.5;
+      });
+    } else {
+      doc.setTextColor(...GRAU);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7.5);
+      doc.text('Keine Abwesenheiten erfasst.', marginL + 4, y + 2);
+      y += 6;
+    }
+
+    y += 6;
+
+    // ── RECHTLICHE PFLICHTANGABEN (ArbZG / NachwG) ────────────────────────────
+    doc.setTextColor(...DUNKEL);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('RECHTLICHE HINWEISE', marginL, y);
+    doc.setDrawColor(...ROT);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y + 1.5, marginL + 48, y + 1.5);
+
+    y += 7;
+
+    const hinweise = [
+      'Gemäß §21a ArbZG ist der Arbeitgeber verpflichtet, die Arbeitszeit der Arbeitnehmer aufzuzeichnen.',
+      'Die Aufzeichnungspflicht umfasst Beginn, Ende und Dauer der täglichen Arbeitszeit.',
+      'Aufzeichnungen sind min. 2 Jahre aufzubewahren (§21a Abs.7 ArbZG, §17 MiLoG).',
+      'Dieser Nachweis dient als Stundennachweis gem. §17 Abs.1 Mindestlohngesetz (MiLoG).',
+    ];
+    hinweise.forEach(h => {
+      const lines = doc.splitTextToSize(h, contentW - 4);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAU);
+      doc.text(lines, marginL + 4, y);
+      y += lines.length * 4 + 1;
+    });
+
+    y += 4;
+
+  });  // Ende maListe.forEach
+
+  const dateiname = 'Lohnzettel_' + monat + (state.maFilter ? '_' + (maListe[0]?.user_name||'').replace(',','').trim().replace(/\s+/g,'_') : '_Alle') + '.pdf';
+  doc.save(dateiname);
+}
+
+// =====================================================
+// CSV Export
+// =====================================================
+function exportCSV() {
+  if (!state.dashData) return;
+  const rows = [['Mitarbeiter','Soll h','Ist h','Diff h','Arbeitszeit h','Fahrzeit h','Pause h','Tage','Einträge','Stundensatz','Lohnkosten']];
+  (state.dashData.mitarbeiter||[]).forEach(ma => {
+    const istH = (ma.arbeit_sek/3600).toFixed(2);
+    const diff = (ma.arbeit_sek/3600 - ma.soll_stunden).toFixed(2);
+    rows.push([
+      ma.user_name, ma.soll_stunden, istH, diff,
+      (ma.arbeitszeit_sek/3600).toFixed(2),
+      (ma.fahrzeit_sek/3600).toFixed(2),
+      (ma.pause_sek/3600).toFixed(2),
+      ma.tage, ma.eintraege,
+      ma.stundensatz,
+      (ma.arbeit_sek/3600*ma.stundensatz).toFixed(2),
+    ]);
+  });
+  const bom = '\uFEFF';
+  const csv = bom + rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `iso-zeit-${state.monat}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// =====================================================
+// Fehleranzeige
+// =====================================================
+function showError(msg) {
+  document.getElementById('main-content').innerHTML =
+    `<div class="error-box"><strong>Fehler</strong><br>${msg}</div>`;
+}
+
+// Start
+init();
+</script>
+<script src="/notification-client.js?v=20260311"></script>
+</body>
+</html>
